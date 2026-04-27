@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "个人博客知识库 - 阶段 1",
-  description: "阶段 1：内容域与文件系统能力验证页面",
+  title: "个人博客知识库",
+  description: "公开知识库浏览前台，采用目录树组织 Markdown 内容。",
 };
 
 export default function RootLayout({
