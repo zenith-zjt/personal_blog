@@ -12,7 +12,8 @@ type ParsedBlock =
   | { type: "list"; items: string[] }
   | { type: "blockquote"; lines: string[] }
   | { type: "code"; language: string | null; code: string }
-  | { type: "image"; alt: string; src: string };
+  | { type: "image"; alt: string; src: string }
+  | { type: "table"; headers: string[]; rows: string[][] };
 
 function escapeInlineHtml(input: string) {
   return input
@@ -30,6 +31,23 @@ function renderInline(text: string) {
   return withCode
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+}
+
+function isTableSeparatorLine(line: string) {
+  const normalized = line.trim().replace(/^\||\|$/g, "");
+  if (!normalized.includes("|")) {
+    return false;
+  }
+
+  return normalized.split("|").every((cell) => /^:?-{3,}:?$/.test(cell.trim()));
+}
+
+function splitTableRow(line: string) {
+  return line
+    .trim()
+    .replace(/^\||\|$/g, "")
+    .split("|")
+    .map((cell) => cell.trim());
 }
 
 function parseMarkdown(markdown: string): ParsedBlock[] {
@@ -87,6 +105,30 @@ function parseMarkdown(markdown: string): ParsedBlock[] {
       continue;
     }
 
+    const nextLine = lines[index + 1]?.trim() ?? "";
+    if (line.includes("|") && isTableSeparatorLine(nextLine)) {
+      const headers = splitTableRow(line);
+      const rows: string[][] = [];
+      index += 2;
+
+      while (index < lines.length && lines[index].trim().includes("|")) {
+        const rowLine = lines[index].trim();
+        if (!rowLine) {
+          break;
+        }
+
+        rows.push(splitTableRow(rowLine));
+        index += 1;
+      }
+
+      blocks.push({
+        type: "table",
+        headers,
+        rows,
+      });
+      continue;
+    }
+
     if (line.startsWith(">")) {
       const quoteLines: string[] = [];
       while (index < lines.length && lines[index].trim().startsWith(">")) {
@@ -116,12 +158,14 @@ function parseMarkdown(markdown: string): ParsedBlock[] {
     const paragraphLines: string[] = [];
     while (index < lines.length && lines[index].trim()) {
       const candidate = lines[index].trim();
+      const following = lines[index + 1]?.trim() ?? "";
       if (
         /^(#{1,6})\s+/.test(candidate) ||
         candidate.startsWith(">") ||
         candidate.startsWith("```") ||
         /^[-*]\s+/.test(candidate) ||
-        /^!\[([^\]]*)\]\(([^)]+)\)$/.test(candidate)
+        /^!\[([^\]]*)\]\(([^)]+)\)$/.test(candidate) ||
+        (candidate.includes("|") && isTableSeparatorLine(following))
       ) {
         break;
       }
@@ -254,6 +298,46 @@ export function MarkdownRenderer({
               <pre className="overflow-x-auto px-5 py-5 text-sm leading-7 text-stone-100">
                 <code>{block.code}</code>
               </pre>
+            </div>
+          );
+        }
+
+        if (block.type === "table") {
+          return (
+            <div
+              key={`table-${blockIndex}`}
+              className="overflow-hidden rounded-[28px] border border-stone-300 bg-white shadow-[0_20px_40px_rgba(44,36,24,0.08)]"
+            >
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-collapse text-left text-sm md:text-base">
+                  <thead className="bg-stone-100 text-stone-900">
+                    <tr>
+                      {block.headers.map((header, headerIndex) => (
+                        <th
+                          key={`${header}-${headerIndex}`}
+                          className="border-b border-stone-200 px-5 py-4 font-semibold"
+                          dangerouslySetInnerHTML={{ __html: renderInline(header) }}
+                        />
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, rowIndex) => (
+                      <tr key={`row-${rowIndex}`} className="odd:bg-white even:bg-stone-50/70">
+                        {block.headers.map((_, cellIndex) => (
+                          <td
+                            key={`cell-${rowIndex}-${cellIndex}`}
+                            className="border-b border-stone-200 px-5 py-4 align-top"
+                            dangerouslySetInnerHTML={{
+                              __html: renderInline(row[cellIndex] ?? ""),
+                            }}
+                          />
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           );
         }

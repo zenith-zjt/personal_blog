@@ -17,7 +17,7 @@ export default async function AdminLoginPage() {
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#efe6d8_0%,#e8ddcb_44%,#ded2c0_100%)] px-4 py-4 text-stone-900 md:px-6 md:py-6">
-      <div className="mx-auto grid min-h-[calc(100vh-2rem)] w-full max-w-[1300px] gap-6 rounded-[36px] border border-stone-300/70 bg-[linear-gradient(135deg,#f9f5ec_0%,#f2ecdf_46%,#ebe2d2_100%)] p-4 shadow-[0_30px_90px_rgba(44,36,24,0.10)] lg:grid-cols-[minmax(0,1fr)_420px] md:p-8">
+      <div className="mx-auto grid min-h-[calc(100vh-2rem)] w-full max-w-[1300px] gap-6 rounded-[36px] border border-stone-300/70 bg-[linear-gradient(135deg,#f9f5ec_0%,#f2ecdf_46%,#ebe2d2_100%)] p-4 shadow-[0_30px_90px_rgba(44,36,24,0.10)] md:p-8 lg:grid-cols-[minmax(0,1fr)_420px]">
         <section className="rounded-[30px] bg-[linear-gradient(135deg,#1f2430_0%,#2d3646_52%,#8b6630_150%)] px-6 py-8 text-stone-50 md:px-8 md:py-10">
           <p className="text-[11px] uppercase tracking-[0.36em] text-stone-300">
             Hidden Admin

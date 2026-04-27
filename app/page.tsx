@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { SearchForm } from "@/components/search-form";
+import { buildArticleHref } from "@/lib/content-paths";
 import { getDefaultArticleSlug, listKnowledgeBases } from "@/lib/content";
 
 export default async function Home() {
@@ -24,7 +25,7 @@ export default async function Home() {
               面向公开阅读的个人知识库，而不是普通时间流博客。
             </h1>
             <p className="mt-6 max-w-2xl text-base leading-8 text-stone-200 md:text-lg">
-              以知识库为入口，以目录树为骨架，以 Markdown 为内容源。访客无需登录，直接从知识集合进入具体文章。
+              以知识库为入口，以目录树为骨架，以 Markdown 为内容源。访客无需登录，直接从知识库集合进入具体文章。
             </p>
           </div>
 
@@ -50,8 +51,8 @@ export default async function Home() {
             <div className="mt-8 grid gap-5 xl:grid-cols-2" data-testid="library-grid">
               {featuredLibraries.map((library, index) => {
                 const href = library.defaultSlug
-                  ? `/kb/${library.slug}/${library.defaultSlug.join("/")}`
-                  : `/kb/${library.slug}`;
+                  ? buildArticleHref(library.slug, library.defaultSlug)
+                  : `/kb/${encodeURIComponent(library.slug)}`;
 
                 return (
                   <Link

@@ -17,4 +17,3 @@ updatedAt: 2026-04-27
 ## 图片规则
 
 当 Markdown 中使用 `![说明](arch-diagram.svg)` 这样的相对路径时，系统默认去当前文章同级的 `resource` 目录下寻找资源。
-

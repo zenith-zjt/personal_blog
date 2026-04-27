@@ -5,7 +5,7 @@ import { adminLogoutAction } from "@/app/admin-archive-portal/actions";
 type AdminShellProps = {
   title: string;
   description: string;
-  currentPath: "dashboard" | "tree" | "upload";
+  currentPath: "dashboard" | "tree";
   children: React.ReactNode;
 };
 
@@ -17,13 +17,8 @@ const adminNavItems = [
   },
   {
     key: "tree",
-    label: "知识库树",
+    label: "知识库管理树",
     href: "/admin-archive-portal/tree",
-  },
-  {
-    key: "upload",
-    label: "上传文章",
-    href: "/admin-archive-portal/upload",
   },
 ] as const;
 
@@ -65,9 +60,10 @@ export function AdminShell({
               <Link
                 key={item.key}
                 href={item.href}
-                className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                aria-current={currentPath === item.key ? "page" : undefined}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                   currentPath === item.key
-                    ? "bg-stone-50 text-stone-900"
+                    ? "border border-stone-200 bg-white !text-black shadow-[0_8px_24px_rgba(255,255,255,0.22)]"
                     : "border border-stone-300/40 bg-white/10 text-stone-50 hover:bg-white/20"
                 }`}
               >

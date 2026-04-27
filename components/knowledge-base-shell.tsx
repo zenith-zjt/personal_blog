@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import type { TreeNode } from "@/lib/content";
 import { SearchForm } from "@/components/search-form";
+import { buildArticleHref } from "@/lib/content-paths";
+import type { TreeNode } from "@/lib/content";
 
 type KnowledgeBaseShellProps = {
   libraryName: string;
@@ -36,7 +37,10 @@ function TreeNodeItem({
   const active = isNodeActive(node.path, currentPath);
 
   if (node.type === "article") {
-    const href = `/kb/${librarySlug}/${node.path.replace(/\.md$/, "").replace(/\\/g, "/")}`;
+    const href = buildArticleHref(
+      librarySlug,
+      node.path.replace(/\.md$/, "").split("/"),
+    );
 
     return (
       <li>

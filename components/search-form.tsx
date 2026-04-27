@@ -8,7 +8,7 @@ type SearchFormProps = {
 
 export function SearchForm({
   initialQuery = "",
-  placeholder = "搜索文章标题、文件名、路径或正文关键词",
+  placeholder = "搜索文章标题、文件名、路径或正文关键字",
   compact = false,
 }: SearchFormProps) {
   return (

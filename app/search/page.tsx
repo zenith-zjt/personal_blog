@@ -12,7 +12,7 @@ type SearchPageProps = {
 
 export const metadata: Metadata = {
   title: "搜索文章 | 个人博客知识库",
-  description: "按标题、文件名、路径或正文关键词搜索知识库文章。",
+  description: "按标题、文件名、路径或正文关键字搜索知识库文章。",
 };
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
@@ -64,7 +64,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   先输入搜索词，再开始检索。
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-stone-600">
-                  你可以尝试搜索 `welcome`、`java`、`知识库` 或某篇文章路径中的关键词。
+                  你可以尝试搜索 `welcome`、`java`、`知识库` 或某篇文章路径中的关键字。
                 </p>
               </div>
             ) : results.length === 0 ? (
@@ -73,10 +73,10 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
                   No Result
                 </p>
                 <h2 className="mt-4 text-2xl font-semibold text-stone-900">
-                  没有找到与 “{query}” 相关的文章。
+                  没有找到与“{query}”相关的文章。
                 </h2>
                 <p className="mt-4 text-sm leading-7 text-stone-600">
-                  可以尝试缩短关键词，或改用标题、文件名、路径中的核心词重新搜索。
+                  可以尝试缩短关键字，或改用标题、文件名、路径中的核心词重新搜索。
                 </p>
               </div>
             ) : (

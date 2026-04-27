@@ -4,6 +4,11 @@ import { notFound } from "next/navigation";
 import { KnowledgeBaseShell } from "@/components/knowledge-base-shell";
 import { MarkdownRenderer } from "@/components/markdown-renderer";
 import {
+  buildArticleHref,
+  decodeRouteSegment,
+  decodeRouteSegments,
+} from "@/lib/content-paths";
+import {
   getDefaultArticleSlug,
   getKnowledgeBaseTree,
   listKnowledgeBases,
@@ -17,7 +22,11 @@ type KnowledgeBasePageProps = {
   }>;
 };
 
-function buildBreadcrumbs(libraryName: string, librarySlug: string, slugParts: string[]) {
+function buildBreadcrumbs(
+  libraryName: string,
+  librarySlug: string,
+  slugParts: string[],
+) {
   const breadcrumbs = [
     {
       label: "知识库首页",
@@ -25,14 +34,14 @@ function buildBreadcrumbs(libraryName: string, librarySlug: string, slugParts: s
     },
     {
       label: libraryName,
-      href: `/kb/${librarySlug}`,
+      href: `/kb/${encodeURIComponent(librarySlug)}`,
     },
   ];
 
   slugParts.forEach((segment, index) => {
     breadcrumbs.push({
       label: segment,
-      href: `/kb/${librarySlug}/${slugParts.slice(0, index + 1).join("/")}`,
+      href: buildArticleHref(librarySlug, slugParts.slice(0, index + 1)),
     });
   });
 
@@ -43,8 +52,10 @@ export async function generateMetadata({
   params,
 }: KnowledgeBasePageProps): Promise<Metadata> {
   const { library, slug } = await params;
+  const decodedLibrary = decodeRouteSegment(library);
+  const decodedSlug = slug ? decodeRouteSegments(slug) : undefined;
   const libraries = await listKnowledgeBases();
-  const librarySummary = libraries.find((entry) => entry.slug === library);
+  const librarySummary = libraries.find((entry) => entry.slug === decodedLibrary);
 
   if (!librarySummary) {
     return {
@@ -52,7 +63,7 @@ export async function generateMetadata({
     };
   }
 
-  const finalSlug = slug ?? (await getDefaultArticleSlug(library));
+  const finalSlug = decodedSlug ?? (await getDefaultArticleSlug(decodedLibrary));
 
   if (!finalSlug) {
     return {
@@ -61,7 +72,7 @@ export async function generateMetadata({
     };
   }
 
-  const article = await readArticle(library, finalSlug);
+  const article = await readArticle(decodedLibrary, finalSlug);
   return {
     title: `${article.title} | ${librarySummary.name}`,
     description: article.description ?? librarySummary.description ?? undefined,
@@ -72,14 +83,16 @@ export default async function KnowledgeBaseArticlePage({
   params,
 }: KnowledgeBasePageProps) {
   const { library, slug } = await params;
+  const decodedLibrary = decodeRouteSegment(library);
+  const decodedSlug = slug ? decodeRouteSegments(slug) : undefined;
   const libraries = await listKnowledgeBases();
-  const librarySummary = libraries.find((entry) => entry.slug === library);
+  const librarySummary = libraries.find((entry) => entry.slug === decodedLibrary);
 
   if (!librarySummary) {
     notFound();
   }
 
-  const finalSlug = slug ?? (await getDefaultArticleSlug(library));
+  const finalSlug = decodedSlug ?? (await getDefaultArticleSlug(decodedLibrary));
 
   if (!finalSlug) {
     notFound();
@@ -87,12 +100,12 @@ export default async function KnowledgeBaseArticlePage({
 
   let article;
   try {
-    article = await readArticle(library, finalSlug);
+    article = await readArticle(decodedLibrary, finalSlug);
   } catch {
     notFound();
   }
 
-  const tree = await getKnowledgeBaseTree(library);
+  const tree = await getKnowledgeBaseTree(decodedLibrary);
   const breadcrumbs = buildBreadcrumbs(
     librarySummary.name,
     librarySummary.slug,

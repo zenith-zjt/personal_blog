@@ -1,11 +1,14 @@
 import { getDefaultArticleSlug, readArticle } from "@/lib/content";
+import { decodeRouteSegment, decodeRouteSegments } from "@/lib/content-paths";
 
 export async function GET(
   _request: Request,
   context: RouteContext<"/api/content/[library]/article/[[...slug]]">,
 ) {
   const { library, slug } = await context.params;
-  const slugParts = slug ?? (await getDefaultArticleSlug(library));
+  const decodedLibrary = decodeRouteSegment(library);
+  const decodedSlug = slug ? decodeRouteSegments(slug) : undefined;
+  const slugParts = decodedSlug ?? (await getDefaultArticleSlug(decodedLibrary));
 
   if (!slugParts) {
     return Response.json(
@@ -16,9 +19,9 @@ export async function GET(
     );
   }
 
-  const article = await readArticle(library, slugParts);
+  const article = await readArticle(decodedLibrary, slugParts);
   return Response.json({
-    library,
+    library: decodedLibrary,
     article,
   });
 }
