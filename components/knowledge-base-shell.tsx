@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import type { TreeNode } from "@/lib/content";
+import { SearchForm } from "@/components/search-form";
 
 type KnowledgeBaseShellProps = {
   libraryName: string;
@@ -117,6 +118,10 @@ export function KnowledgeBaseShell({
             </p>
           </div>
 
+          <div className="mt-5">
+            <SearchForm compact />
+          </div>
+
           <nav className="mt-5" aria-label={`${librarySlug} tree`}>
             <ul className="space-y-2">
               {tree.map((node) => (
@@ -149,6 +154,10 @@ export function KnowledgeBaseShell({
               >
                 返回知识库首页
               </Link>
+            </div>
+
+            <div className="mt-4 lg:hidden">
+              <SearchForm compact />
             </div>
 
             {mobileOpen ? (

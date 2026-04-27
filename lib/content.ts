@@ -6,7 +6,7 @@ const RESOURCE_DIR_NAME = "resource";
 
 type FrontmatterRecord = Record<string, string>;
 
-export type TreeNodeType = "directory" | "article" | "resource";
+export type TreeNodeType = "directory" | "article" | "resource" | "asset";
 
 export type TreeNode = {
   id: string;
@@ -41,6 +41,21 @@ export type ArticleDocument = ArticleMeta & {
   resolvedImageSources: string[];
 };
 
+export type SearchResult = {
+  id: string;
+  title: string;
+  description: string | null;
+  excerpt: string;
+  librarySlug: string;
+  libraryName: string;
+  relativePath: string;
+  slugParts: string[];
+  href: string;
+  fileName: string;
+  updatedAt: string | null;
+  score: number;
+};
+
 type ParsedMarkdown = {
   frontmatter: FrontmatterRecord;
   body: string;
@@ -49,6 +64,17 @@ type ParsedMarkdown = {
 type ScanResult = {
   tree: TreeNode[];
   articles: ArticleMeta[];
+};
+
+export type ContentDirectoryOption = {
+  value: string;
+  label: string;
+};
+
+export type UploadArticleInput = {
+  targetDirectory: string;
+  markdownFile: File;
+  imageFiles: File[];
 };
 
 function toPosixPath(...parts: string[]) {
@@ -67,6 +93,20 @@ function ensureWithinContentRoot(targetPath: string) {
   }
 
   return resolvedTarget;
+}
+
+function ensureSafeFileName(fileName: string) {
+  const normalized = path.basename(fileName).trim();
+
+  if (!normalized || normalized === "." || normalized === "..") {
+    throw new Error("文件名无效。");
+  }
+
+  if (/[<>:"|?*]/.test(normalized)) {
+    throw new Error(`文件名包含非法字符：${normalized}`);
+  }
+
+  return normalized;
 }
 
 async function ensureContentRootExists() {
@@ -135,7 +175,11 @@ function extractHeadings(body: string) {
     .map((line) => line.replace(/^#{1,6}\s+/, "").trim());
 }
 
-function createAssetUrl(librarySlug: string, articleDirParts: string[], resourcePath: string) {
+function createAssetUrl(
+  librarySlug: string,
+  articleDirParts: string[],
+  resourcePath: string,
+) {
   const normalized = resourcePath.replace(/^\.\/+/, "").replace(/^resource\//, "");
   const segments = ["", "api", "assets", librarySlug, ...articleDirParts, RESOURCE_DIR_NAME];
 
@@ -144,6 +188,10 @@ function createAssetUrl(librarySlug: string, articleDirParts: string[], resource
   }
 
   return encodeURI(toPosixPath(...segments));
+}
+
+export function buildArticleHref(librarySlug: string, slugParts: string[]) {
+  return `/kb/${librarySlug}/${slugParts.join("/")}`;
 }
 
 export function resolveMarkdownAssetPath(
@@ -174,6 +222,41 @@ function extractResolvedImageSources(
   return matches.map((match) =>
     resolveMarkdownAssetPath(librarySlug, articleDirParts, match[1].trim()),
   );
+}
+
+function stripMarkdown(markdown: string) {
+  return markdown
+    .replace(/!\[[^\]]*]\([^)]+\)/g, " ")
+    .replace(/\[[^\]]+]\([^)]+\)/g, "$1")
+    .replace(/`{1,3}[^`]*`{1,3}/g, " ")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/^[-*]\s+/gm, "")
+    .replace(/\r?\n/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function createExcerpt(text: string, query: string) {
+  const normalizedText = stripMarkdown(text);
+  if (!normalizedText) {
+    return "";
+  }
+
+  const lowerText = normalizedText.toLowerCase();
+  const lowerQuery = query.toLowerCase();
+  const matchIndex = lowerText.indexOf(lowerQuery);
+
+  if (matchIndex === -1) {
+    return normalizedText.slice(0, 140);
+  }
+
+  const start = Math.max(0, matchIndex - 36);
+  const end = Math.min(normalizedText.length, matchIndex + query.length + 72);
+  const prefix = start > 0 ? "..." : "";
+  const suffix = end < normalizedText.length ? "..." : "";
+
+  return `${prefix}${normalizedText.slice(start, end)}${suffix}`;
 }
 
 async function scanKnowledgeBaseDirectory(
@@ -223,7 +306,25 @@ async function scanKnowledgeBaseDirectory(
       continue;
     }
 
-    if (!entry.isFile() || path.extname(entry.name).toLowerCase() !== ".md") {
+    if (!entry.isFile()) {
+      continue;
+    }
+
+    const extension = path.extname(entry.name).toLowerCase();
+
+    if (extension !== ".md") {
+      const isResourceAsset = relativeDirParts.includes(RESOURCE_DIR_NAME);
+
+      if (isResourceAsset) {
+        tree.push({
+          id: `${librarySlug}:${entryRelativePath}`,
+          name: entry.name,
+          type: "asset",
+          path: entryRelativePath,
+          visibleInFrontend: false,
+        });
+      }
+
       continue;
     }
 
@@ -274,6 +375,37 @@ function maxUpdatedAt(values: Array<string | null>) {
   return normalized.sort().at(-1) ?? null;
 }
 
+async function collectDirectoryOptions(
+  absoluteDirPath: string,
+  relativeDir: string,
+  options: ContentDirectoryOption[],
+) {
+  const entries = await fs.readdir(absoluteDirPath, { withFileTypes: true });
+  const directories = entries
+    .filter(
+      (entry) =>
+        entry.isDirectory() && entry.name !== RESOURCE_DIR_NAME,
+    )
+    .sort((left, right) => left.name.localeCompare(right.name, "zh-Hans-CN"));
+
+  for (const directory of directories) {
+    const nextRelative = relativeDir
+      ? `${relativeDir}/${directory.name}`
+      : directory.name;
+
+    options.push({
+      value: nextRelative,
+      label: nextRelative.replaceAll("/", " / "),
+    });
+
+    await collectDirectoryOptions(
+      path.join(absoluteDirPath, directory.name),
+      nextRelative,
+      options,
+    );
+  }
+}
+
 export async function listKnowledgeBases() {
   await ensureContentRootExists();
   const entries = await fs.readdir(CONTENT_ROOT, { withFileTypes: true });
@@ -303,7 +435,9 @@ export async function listKnowledgeBases() {
       }),
   );
 
-  return libraries.sort((left, right) => left.slug.localeCompare(right.slug, "zh-Hans-CN"));
+  return libraries.sort((left, right) =>
+    left.slug.localeCompare(right.slug, "zh-Hans-CN"),
+  );
 }
 
 export async function getKnowledgeBaseTree(
@@ -317,6 +451,40 @@ export async function getKnowledgeBaseTree(
   const scan = await scanKnowledgeBaseDirectory(librarySlug, libraryPath);
 
   return options?.includeResourceFolders ? scan.tree : filterFrontendTree(scan.tree);
+}
+
+export async function getAdminKnowledgeBaseTrees() {
+  const libraries = await listKnowledgeBases();
+
+  return Promise.all(
+    libraries.map(async (library) => ({
+      ...library,
+      tree: await getKnowledgeBaseTree(library.slug, {
+        includeResourceFolders: true,
+      }),
+    })),
+  );
+}
+
+export async function listContentDirectoryOptions() {
+  await ensureContentRootExists();
+  const libraries = await listKnowledgeBases();
+  const options: ContentDirectoryOption[] = [];
+
+  for (const library of libraries) {
+    options.push({
+      value: library.slug,
+      label: library.slug,
+    });
+
+    await collectDirectoryOptions(
+      path.join(CONTENT_ROOT, library.slug),
+      library.slug,
+      options,
+    );
+  }
+
+  return options;
 }
 
 export async function getKnowledgeBaseArticleList(librarySlug: string) {
@@ -366,6 +534,178 @@ export async function readArticle(
       librarySlug,
       articleDirParts,
     ),
+  };
+}
+
+export async function searchArticles(query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return [] as SearchResult[];
+  }
+
+  const libraries = await listKnowledgeBases();
+  const results: SearchResult[] = [];
+
+  for (const library of libraries) {
+    const articles = await getKnowledgeBaseArticleList(library.slug);
+
+    for (const articleMeta of articles) {
+      const article = await readArticle(library.slug, articleMeta.slugParts);
+      const fileName = path.basename(article.relativePath, ".md");
+      const bodyText = stripMarkdown(article.body);
+      const titleText = article.title.toLowerCase();
+      const descriptionText = (article.description ?? "").toLowerCase();
+      const pathText = article.relativePath.toLowerCase();
+      const libraryText = `${library.slug} ${library.name}`.toLowerCase();
+      const fileNameText = fileName.toLowerCase();
+
+      const haystack = [
+        titleText,
+        descriptionText,
+        pathText,
+        libraryText,
+        fileNameText,
+        bodyText.toLowerCase(),
+      ].join(" ");
+
+      if (!haystack.includes(normalizedQuery)) {
+        continue;
+      }
+
+      let score = 0;
+      if (titleText.includes(normalizedQuery)) {
+        score += 6;
+      }
+      if (fileNameText.includes(normalizedQuery)) {
+        score += 5;
+      }
+      if (libraryText.includes(normalizedQuery)) {
+        score += 3;
+      }
+      if (pathText.includes(normalizedQuery)) {
+        score += 2;
+      }
+      if (descriptionText.includes(normalizedQuery)) {
+        score += 2;
+      }
+      if (bodyText.toLowerCase().includes(normalizedQuery)) {
+        score += 1;
+      }
+
+      results.push({
+        id: `${library.slug}:${article.relativePath}`,
+        title: article.title,
+        description: article.description,
+        excerpt: createExcerpt(article.body, normalizedQuery),
+        librarySlug: library.slug,
+        libraryName: library.name,
+        relativePath: article.relativePath,
+        slugParts: article.slugParts,
+        href: buildArticleHref(library.slug, article.slugParts),
+        fileName,
+        updatedAt: article.updatedAt,
+        score,
+      });
+    }
+  }
+
+  return results.sort((left, right) => {
+    if (right.score !== left.score) {
+      return right.score - left.score;
+    }
+
+    if ((right.updatedAt ?? "") !== (left.updatedAt ?? "")) {
+      return (right.updatedAt ?? "").localeCompare(left.updatedAt ?? "");
+    }
+
+    return left.relativePath.localeCompare(right.relativePath, "zh-Hans-CN");
+  });
+}
+
+export async function uploadArticleFiles({
+  targetDirectory,
+  markdownFile,
+  imageFiles,
+}: UploadArticleInput) {
+  if (!targetDirectory.trim()) {
+    throw new Error("请选择目标目录。");
+  }
+
+  const markdownName = ensureSafeFileName(markdownFile.name);
+  if (path.extname(markdownName).toLowerCase() !== ".md") {
+    throw new Error("文章文件必须是 .md 格式。");
+  }
+
+  const writableRoot = ensureWithinContentRoot(
+    path.join(CONTENT_ROOT, targetDirectory),
+  );
+
+  const markdownBuffer = Buffer.from(await markdownFile.arrayBuffer());
+  if (markdownBuffer.length === 0) {
+    throw new Error("Markdown 文件不能为空。");
+  }
+
+  await fs.mkdir(writableRoot, { recursive: true });
+
+  const markdownPath = ensureWithinContentRoot(path.join(writableRoot, markdownName));
+
+  try {
+    await fs.access(markdownPath);
+    throw new Error(`目标目录中已存在同名文章：${markdownName}`);
+  } catch (error) {
+    if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  await fs.writeFile(markdownPath, markdownBuffer);
+
+  const allowedImageExtensions = new Set([
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".svg",
+  ]);
+
+  const resourceDir = path.join(writableRoot, RESOURCE_DIR_NAME);
+
+  if (imageFiles.length > 0) {
+    await fs.mkdir(resourceDir, { recursive: true });
+  }
+
+  for (const imageFile of imageFiles) {
+    const imageName = ensureSafeFileName(imageFile.name);
+    const imageExtension = path.extname(imageName).toLowerCase();
+
+    if (!allowedImageExtensions.has(imageExtension)) {
+      throw new Error(`不支持的图片格式：${imageName}`);
+    }
+
+    const imageBuffer = Buffer.from(await imageFile.arrayBuffer());
+    if (imageBuffer.length === 0) {
+      throw new Error(`图片文件不能为空：${imageName}`);
+    }
+
+    const imagePath = ensureWithinContentRoot(path.join(resourceDir, imageName));
+
+    try {
+      await fs.access(imagePath);
+      throw new Error(`资源目录中已存在同名图片：${imageName}`);
+    } catch (error) {
+      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") {
+        throw error;
+      }
+    }
+
+    await fs.writeFile(imagePath, imageBuffer);
+  }
+
+  return {
+    markdownName,
+    imageCount: imageFiles.length,
+    targetDirectory,
   };
 }
 

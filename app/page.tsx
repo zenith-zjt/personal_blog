@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SearchForm } from "@/components/search-form";
 import { getDefaultArticleSlug, listKnowledgeBases } from "@/lib/content";
 
 export default async function Home() {
@@ -25,6 +26,10 @@ export default async function Home() {
             <p className="mt-6 max-w-2xl text-base leading-8 text-stone-200 md:text-lg">
               以知识库为入口，以目录树为骨架，以 Markdown 为内容源。访客无需登录，直接从知识集合进入具体文章。
             </p>
+          </div>
+
+          <div className="mt-8 max-w-3xl">
+            <SearchForm />
           </div>
         </section>
 
@@ -92,9 +97,9 @@ export default async function Home() {
             </h2>
             <ul className="mt-6 space-y-4 text-sm leading-7 text-stone-600">
               <li>首页默认展示知识库集合，而不是普通文章流。</li>
-              <li>知识库详情页会使用左侧树结构进入具体文章。</li>
+              <li>知识库详情页使用左侧树结构进入具体文章。</li>
               <li>文章图片继续按同级 `resource` 目录读取。</li>
-              <li>后台入口不会在前台页面暴露。</li>
+              <li>搜索页可直接检索单篇文章。</li>
             </ul>
           </aside>
         </section>
