@@ -1,70 +1,80 @@
-# Personal Blog Project Agents Guide
+# 个人博客项目协作说明
 
-## Scope
+## 适用范围
 
-This repository is a personal blog and knowledge-base product built with Next.js App Router.
-When the user asks for documentation-only work, do not change application code unless explicitly requested.
+本仓库用于构建“个人博客 + 知识库”产品。
 
-## Next.js Rule
+- 如果用户要求“仅修改文档”，不要顺手改业务代码。
+- 如果用户要求进入某个执行阶段，应优先交付该阶段的可运行结果，而不是只写说明。
+
+## Next.js 规则
 
 <!-- BEGIN:nextjs-agent-rules -->
-# This is NOT the Next.js you know
+# 这不是你默认记忆里的 Next.js
 
-This version has breaking changes. APIs, conventions, and file structure may all differ from your training data.
-Read the relevant guide in `node_modules/next/dist/docs/` before writing any code.
-Heed deprecation notices.
+当前项目使用的 Next.js 存在与旧版本不兼容的 API、约定和目录规则。
+在编写任何代码前，必须先阅读 `node_modules/next/dist/docs/` 下与当前任务相关的文档。
+如遇到弃用提示，优先遵循本地文档。
 <!-- END:nextjs-agent-rules -->
 
-Current local framework baseline:
+当前本地技术基线：
 - `next@16.2.4`
 - `react@19.2.4`
 - `react-dom@19.2.4`
 
-Default architecture assumptions:
-- Use `app/` and App Router conventions.
-- Prefer Server Components by default.
-- Use Route Handlers in `app/**/route.ts` for HTTP APIs.
-- Keep non-route utilities in private folders such as `_lib`, `_components`, `_services`.
+默认实现约束：
+- 使用 `app/` 和 App Router。
+- 默认优先 Server Components。
+- HTTP 接口使用 `app/**/route.ts`。
+- 非路由代码优先放在私有实现目录或 `lib/` 中。
 
-## Product Context
+## 产品上下文
 
-The product has two major surfaces:
-- Public frontend for article and knowledge-base browsing. No login is required.
-- Hidden admin backend for a single administrator account.
+系统包含两个主要面：
+- 前台：公开知识库浏览，无需登录。
+- 后台：隐藏式管理入口，仅单管理员可用。
 
-Core content model:
-- A knowledge base is a directory tree.
-- Articles are Markdown files.
-- Article images are read from a sibling `resource/` folder by default.
-- The `resource/` folder must be excluded from frontend tree navigation.
+内容模型约束：
+- 一级目录视为知识库。
+- Markdown 文件视为文章。
+- 文章图片默认读取同级 `resource/` 目录。
+- 前台树形导航必须排除 `resource` 目录。
 
-## Admin Constraints
+## 管理后台约束
 
-- There is only one administrator account.
-- Default credential baseline is `admin / admin`.
-- The backend must provide password and username change capability.
-- The backend entry must not be exposed in public navigation, footer, sitemap copy, or obvious page links.
-- Article creation is file upload based only. Do not design or implement a rich text editor unless the user explicitly changes scope.
+- 只有一个管理员账号。
+- 默认账号密码基线是 `admin / admin`。
+- 后台必须支持修改用户名和密码。
+- 后台入口不得出现在前台导航、页脚、公开说明、显式链接中。
+- 文章维护方式是文件上传，不做富文本编辑器，除非用户明确改需求。
 
-## Content and File Rules
+## 内容与文件规则
 
-- Treat Markdown files as the source of truth for article content.
-- Preserve nested directory structure because it drives the knowledge-base tree.
-- Uploaded images should remain colocated with their article through the sibling `resource/` directory convention.
-- Any tree-building logic must filter out `resource` folders from visible navigation while still resolving image assets from them.
+- Markdown 文件是文章内容唯一可信源。
+- 文件夹层级就是知识库树结构，不要在实现中破坏它。
+- 上传图片应与文章保持同目录上下文，默认进入同级 `resource/`。
+- 所有树形构建逻辑都要同时满足：
+  - 前台隐藏 `resource`
+  - 资源解析仍能正确定位到 `resource`
 
-## Frontend Design Rule
+## 前端设计规则
 
-When building or changing UI, use the `frontend-design` skill guidance:
-- Avoid generic blog layouts.
-- The public knowledge-base view should feel closer to a documentation workspace or IDE file tree than a marketing blog.
-- Typography, spacing, color, and motion should be intentional and distinctive.
-- Preserve usability on desktop and mobile.
+涉及前端页面和组件时，遵循 `frontend-design` skill 的目标：
+- 不做通用模板博客。
+- 前台要更像知识工作台或文档 IDE，而不是营销站。
+- 字体、配色、布局和交互要有明确设计意图。
+- 同时保证桌面端和移动端可用。
 
-## Delivery Rule
+## 测试规范
 
-Before editing code or architecture-sensitive docs:
-1. Inspect repository structure.
-2. Read the relevant local Next.js docs under `node_modules/next/dist/docs/`.
-3. Check for existing project docs in `docs/`.
-4. Avoid reverting unrelated user changes.
+- 任何页面相关修改完成后，必须补充或执行 Playwright 测试。
+- 新增页面能力时，至少覆盖一条主流程测试。
+- 如果本地环境无法完成 Playwright 测试，需要在最终说明中明确指出原因。
+
+## 交付规则
+
+开始改动前应先做以下检查：
+1. 查看当前仓库结构。
+2. 阅读本地 `node_modules/next/dist/docs/` 中相关文档。
+3. 检查 `docs/` 下是否已有相关方案或约束。
+4. 不要回滚用户未要求回滚的改动。

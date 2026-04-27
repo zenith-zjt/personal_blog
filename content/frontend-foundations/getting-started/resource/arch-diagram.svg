@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="280" viewBox="0 0 640 280" fill="none">
+  <rect width="640" height="280" rx="24" fill="#FCFBF7"/>
+  <rect x="36" y="46" width="168" height="188" rx="18" fill="#202939"/>
+  <rect x="236" y="46" width="168" height="188" rx="18" fill="#EEE2CC"/>
+  <rect x="436" y="46" width="168" height="188" rx="18" fill="#9BAA8B"/>
+  <path d="M204 140H236" stroke="#202939" stroke-width="4" stroke-linecap="round"/>
+  <path d="M404 140H436" stroke="#202939" stroke-width="4" stroke-linecap="round"/>
+  <text x="64" y="102" fill="#F9FAFB" font-size="24" font-family="Arial, sans-serif">内容目录</text>
+  <text x="64" y="142" fill="#D1D5DB" font-size="16" font-family="Arial, sans-serif">content/...</text>
+  <text x="264" y="102" fill="#202939" font-size="24" font-family="Arial, sans-serif">扫描器</text>
+  <text x="264" y="142" fill="#4B5563" font-size="16" font-family="Arial, sans-serif">树结构与文章索引</text>
+  <text x="470" y="102" fill="#F9FAFB" font-size="24" font-family="Arial, sans-serif">页面 / API</text>
+  <text x="470" y="142" fill="#F3F4F6" font-size="16" font-family="Arial, sans-serif">前台验证出口</text>
+</svg>
