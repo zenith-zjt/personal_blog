@@ -3,8 +3,11 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "admin";
+import {
+  getAdminCredentialHints as readAdminCredentialHints,
+  verifyAdminCredentials as verifyStoredAdminCredentials,
+} from "@/lib/admin-profile";
+
 const SESSION_COOKIE_NAME = "personal_blog_admin_session";
 const SESSION_DURATION_SECONDS = 60 * 60 * 12;
 
@@ -12,10 +15,6 @@ type AdminSessionPayload = {
   username: string;
   expiresAt: number;
 };
-
-type VerifyCredentialResult =
-  | { ok: true; username: string }
-  | { ok: false; message: string };
 
 function getSessionSecret() {
   return process.env.ADMIN_SESSION_SECRET ?? "personal-blog-admin-session-secret";
@@ -88,28 +87,8 @@ function parseSessionToken(token: string | undefined) {
   }
 }
 
-export function verifyAdminCredentials(
-  username: string,
-  password: string,
-): VerifyCredentialResult {
-  if (!username.trim() || !password.trim()) {
-    return {
-      ok: false,
-      message: "请输入用户名和密码。",
-    };
-  }
-
-  if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
-    return {
-      ok: false,
-      message: "用户名或密码错误。",
-    };
-  }
-
-  return {
-    ok: true,
-    username,
-  };
+export async function verifyAdminCredentials(username: string, password: string) {
+  return verifyStoredAdminCredentials(username, password);
 }
 
 export async function createAdminSession(username: string) {
@@ -155,9 +134,6 @@ export async function redirectIfAdminSessionExists() {
   }
 }
 
-export function getAdminCredentialHints() {
-  return {
-    defaultUsername: ADMIN_USERNAME,
-    defaultPassword: ADMIN_PASSWORD,
-  };
+export async function getAdminCredentialHints() {
+  return readAdminCredentialHints();
 }

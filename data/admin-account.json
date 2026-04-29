@@ -1,0 +1,23 @@
+{
+  "username": "admin",
+  "passwordSalt": "79f9ae91bd3cb4c4acb8d21fcd8168c6",
+  "passwordHash": "a6e1252d375bed8e2d9977ce40ee131569ef528259faabbff665c19995b29956",
+  "profile": {
+    "displayName": "admin",
+    "avatarUrl": "",
+    "roleLabel": "后端开发者 / 技术分享",
+    "signature": "把工程经验整理成可以复用的知识路径。",
+    "profession": "后端开发者",
+    "bio": "你好!我是一名热爱技术的全栈开发者,专注于构建优雅、高效的 Web 应用程序。\r\n这个博客是我记录学习过程、分享技术心得和生活感悟的地方。\r\n\r\n我相信技术的力量可以改变世界,也相信持续学习是保持竞争力的关键。\r\n在这里,我会分享我在开发过程中遇到的问题、解决方案以及一些有趣的项目。",
+    "techStack": [
+      "Next.js",
+      "React",
+      "TypeScript",
+      "Java",
+      "Spring",
+      "AI Tools"
+    ],
+    "githubUrl": "https://github.com/example",
+    "location": "Hong Kong / Remote"
+  }
+}

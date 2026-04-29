@@ -5,7 +5,7 @@ import { adminLogoutAction } from "@/app/admin-archive-portal/actions";
 type AdminShellProps = {
   title: string;
   description: string;
-  currentPath: "dashboard" | "tree";
+  currentPath: "dashboard" | "tree" | "settings" | "import-export";
   children: React.ReactNode;
 };
 
@@ -19,6 +19,16 @@ const adminNavItems = [
     key: "tree",
     label: "知识库管理树",
     href: "/admin-archive-portal/tree",
+  },
+  {
+    key: "settings",
+    label: "账号设置",
+    href: "/admin-archive-portal/settings",
+  },
+  {
+    key: "import-export",
+    label: "导入导出",
+    href: "/admin-archive-portal/import-export",
   },
 ] as const;
 

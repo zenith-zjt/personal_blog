@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 
 export default async function AdminLoginPage() {
   await redirectIfAdminSessionExists();
-  const credentialHints = getAdminCredentialHints();
+  const credentialHints = await getAdminCredentialHints();
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#efe6d8_0%,#e8ddcb_44%,#ded2c0_100%)] px-4 py-4 text-stone-900 md:px-6 md:py-6">

@@ -12,6 +12,15 @@ import {
   verifyAdminCredentials,
 } from "@/lib/admin-auth";
 import {
+  updateAdminProfile,
+  updateAdminSecurity,
+  type AdminPublicProfile,
+} from "@/lib/admin-profile";
+import {
+  importBlogMigrationZip,
+  importSystemBackupZip,
+} from "@/lib/archive";
+import {
   createContentDirectory,
   createKnowledgeBase,
   deleteContentNode,
@@ -30,6 +39,11 @@ export type AdminUploadFormState = {
   message?: string;
   success?: boolean;
   redirectTo?: string;
+};
+
+export type AdminSettingsFormState = {
+  message?: string;
+  success?: boolean;
 };
 
 type TreeFlashStatus = "success" | "error";
@@ -68,7 +82,7 @@ export async function adminLoginAction(
 ) {
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
-  const verification = verifyAdminCredentials(username, password);
+  const verification = await verifyAdminCredentials(username, password);
 
   if (!verification.ok) {
     return {
@@ -80,10 +94,154 @@ export async function adminLoginAction(
   redirect("/admin-archive-portal");
 }
 
+export async function adminUpdateSecurityAction(
+  _state: AdminSettingsFormState,
+  formData: FormData,
+): Promise<AdminSettingsFormState> {
+  await requireAdminSession();
+
+  try {
+    const result = await updateAdminSecurity({
+      username: String(formData.get("username") ?? ""),
+      currentPassword: String(formData.get("currentPassword") ?? ""),
+      nextPassword: String(formData.get("nextPassword") ?? ""),
+      confirmPassword: String(formData.get("confirmPassword") ?? ""),
+    });
+
+    await createAdminSession(result.username);
+    revalidateAdminAndPublicPaths();
+
+    return {
+      success: true,
+      message: "安全信息已更新。",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "安全信息更新失败。",
+    };
+  }
+}
+
+export async function adminUpdateProfileAction(
+  _state: AdminSettingsFormState,
+  formData: FormData,
+): Promise<AdminSettingsFormState> {
+  await requireAdminSession();
+
+  const techStack = String(formData.get("techStack") ?? "")
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+  try {
+    const avatarFile = formData.get("avatarFile");
+
+    await updateAdminProfile(
+      {
+        displayName: String(formData.get("displayName") ?? ""),
+        avatarUrl: String(formData.get("avatarUrl") ?? ""),
+        roleLabel: String(formData.get("roleLabel") ?? ""),
+        signature: String(formData.get("signature") ?? ""),
+        profession: String(formData.get("profession") ?? ""),
+        bio: String(formData.get("bio") ?? ""),
+        techStack,
+        githubUrl: String(formData.get("githubUrl") ?? ""),
+        location: String(formData.get("location") ?? ""),
+      } satisfies AdminPublicProfile,
+      avatarFile instanceof File ? avatarFile : undefined,
+    );
+
+    revalidateAdminAndPublicPaths();
+
+    return {
+      success: true,
+      message: "资料信息已更新。",
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "资料信息更新失败。",
+    };
+  }
+}
+
+export async function adminImportSystemBackupAction(
+  _state: AdminSettingsFormState,
+  formData: FormData,
+): Promise<AdminSettingsFormState> {
+  await requireAdminSession();
+
+  const backupFile = formData.get("backupFile");
+  const overwrite = String(formData.get("overwrite") ?? "") === "true";
+
+  if (!(backupFile instanceof File) || !backupFile.name) {
+    return {
+      success: false,
+      message: "请上传系统备份 ZIP 文件。",
+    };
+  }
+
+  try {
+    const result = await importSystemBackupZip(
+      Buffer.from(await backupFile.arrayBuffer()),
+      overwrite,
+    );
+
+    revalidateAdminAndPublicPaths();
+
+    return {
+      success: true,
+      message: `系统备份导入完成，共写入 ${result.fileCount} 个文件。`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "系统备份导入失败。",
+    };
+  }
+}
+
+export async function adminImportBlogMigrationAction(
+  _state: AdminSettingsFormState,
+  formData: FormData,
+): Promise<AdminSettingsFormState> {
+  await requireAdminSession();
+
+  const migrationFile = formData.get("migrationFile");
+
+  if (!(migrationFile instanceof File) || !migrationFile.name) {
+    return {
+      success: false,
+      message: "请上传博客迁移 ZIP 文件。",
+    };
+  }
+
+  try {
+    const result = await importBlogMigrationZip(
+      Buffer.from(await migrationFile.arrayBuffer()),
+    );
+
+    revalidateAdminAndPublicPaths();
+
+    return {
+      success: true,
+      message: `博客迁移导入完成，共写入 ${result.fileCount} 个有效文件。`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "博客迁移导入失败。",
+    };
+  }
+}
+
 function revalidateAdminAndPublicPaths() {
   revalidatePath("/");
   revalidatePath("/search");
   revalidatePath("/admin-archive-portal");
+  revalidatePath("/admin-archive-portal/settings");
+  revalidatePath("/admin-archive-portal/import-export");
   revalidatePath("/admin-archive-portal/tree");
   revalidatePath("/admin-archive-portal/upload");
 }

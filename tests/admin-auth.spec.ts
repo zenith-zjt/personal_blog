@@ -47,6 +47,59 @@ test("invalid admin credentials show an error", async ({ page }) => {
   await expect(page.locator("p[role='alert']")).toBeVisible();
 });
 
+test("admin can update security and public profile settings", async ({ page }) => {
+  await loginAsAdmin(page);
+  await page.goto("/admin-archive-portal/settings");
+
+  await expect(page.getByRole("button", { name: "安全", exact: true })).toBeVisible();
+  await page.locator("#settings-current-password").fill("admin");
+  await page.locator("#settings-username").fill("admin");
+  await page.getByRole("button", { name: "保存安全设置" }).click();
+  await expect(page.locator("p[role='status']")).toContainText("安全信息");
+
+  await page.getByRole("button", { name: "资料" }).click();
+  await page.locator("#profile-display-name").fill("Codex Writer");
+  await page.setInputFiles("#profile-avatar-file", {
+    name: "avatar.svg",
+    mimeType: "image/svg+xml",
+    buffer: Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><circle cx="40" cy="40" r="40" fill="#222"/></svg>`,
+      "utf8",
+    ),
+  });
+  await page.locator("#profile-signature").fill("记录工程现场的可复用路径。");
+  await page.locator("#profile-tech-stack").fill("Next.js, React, TypeScript, Java");
+  await page.getByRole("button", { name: "保存资料信息" }).click();
+  await expect(page.locator("p[role='status']")).toContainText("资料信息");
+
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", { name: "Codex Writer", level: 1 }),
+  ).toBeVisible();
+  await expect(page.getByRole("img", { name: "Codex Writer" })).toBeVisible();
+  await expect(page.getByText("记录工程现场的可复用路径。")).toBeVisible();
+});
+
+test("admin can open import export page and download archives", async ({
+  page,
+}) => {
+  await loginAsAdmin(page);
+  await page.goto("/admin-archive-portal/import-export");
+
+  await expect(page.getByRole("heading", { name: "导入导出" })).toBeVisible();
+
+  const systemDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("link", { name: "下载系统备份" }).click();
+  const systemDownload = await systemDownloadPromise;
+  expect(systemDownload.suggestedFilename()).toBe("system-backup.zip");
+
+  await page.getByRole("button", { name: "博客迁移" }).click();
+  const blogDownloadPromise = page.waitForEvent("download");
+  await page.getByRole("link", { name: "下载博客迁移包" }).click();
+  const blogDownload = await blogDownloadPromise;
+  expect(blogDownload.suggestedFilename()).toBe("blog-migration.zip");
+});
+
 test("tree page expands only one knowledge base at a time", async ({ page }) => {
   await loginAsAdmin(page);
   await page.goto("/admin-archive-portal/tree");
