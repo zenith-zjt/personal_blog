@@ -32,10 +32,12 @@ export default async function Home() {
   const avatarUrl = resolveProfileAvatarUrl(profile.avatarUrl);
 
   return (
-    <main className="min-h-screen bg-[#f4f1ea] text-stone-950">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_20%_0%,#f8efe1_0%,#efe4d3_44%,#ded0bc_100%)] text-stone-950">
       <section className="relative flex min-h-screen overflow-hidden px-4 py-4 md:px-6 md:py-6">
-        <div className="absolute inset-0 bg-[linear-gradient(120deg,#111827_0%,#27313f_44%,#d8c7a4_100%)]" />
-        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,#f4f1ea_86%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(120deg,#151922_0%,#293140_48%,#cdb48d_100%)]" />
+        <div className="absolute left-[-8rem] top-[-8rem] h-96 w-96 rounded-full bg-[#d8b56f]/20 blur-3xl" />
+        <div className="absolute bottom-[-10rem] right-[-8rem] h-[28rem] w-[28rem] rounded-full bg-white/18 blur-3xl" />
+        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-[linear-gradient(180deg,transparent,#f0e5d5_86%)]" />
         <div className="absolute left-8 top-10 h-28 w-px bg-white/35" />
         <div className="absolute bottom-20 right-8 hidden h-64 w-px bg-stone-900/20 md:block" />
 
@@ -66,7 +68,7 @@ export default async function Home() {
             </div>
           </div>
 
-          <aside className="animate-[profile-rise_900ms_ease-out_180ms_both] border-l border-white/25 pl-6 text-white md:pl-8">
+          <aside className="animate-[profile-rise_900ms_ease-out_180ms_both] rounded-[30px] border border-white/20 bg-white/10 p-6 text-white shadow-[0_30px_90px_rgba(0,0,0,0.18)] backdrop-blur md:p-8">
             <div className="flex items-center gap-5">
               {avatarUrl ? (
                 <div
@@ -128,7 +130,7 @@ export default async function Home() {
       >
         <div className="mx-auto grid w-full max-w-[1500px] gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-8">
-            <div className="sticky top-4 z-10 rounded-lg border border-stone-300 bg-[#fdfbf6]/95 p-4 shadow-[0_18px_45px_rgba(44,36,24,0.08)] backdrop-blur md:p-5">
+            <div className="sticky top-4 z-10 rounded-[26px] border border-stone-300/80 bg-[#fffaf2]/95 p-4 shadow-[0_18px_45px_rgba(44,36,24,0.08)] backdrop-blur md:p-5">
               <SearchForm />
             </div>
 
@@ -157,7 +159,7 @@ export default async function Home() {
                     <Link
                       key={library.slug}
                       href={href}
-                      className="group block rounded-lg border border-stone-300 bg-[#fdfbf6] p-5 transition duration-300 hover:-translate-y-1 hover:border-stone-900 hover:shadow-[0_22px_50px_rgba(44,36,24,0.10)]"
+                      className="group block rounded-[28px] border border-stone-300/80 bg-[#fffaf2] p-5 shadow-[0_14px_40px_rgba(44,36,24,0.055)] transition duration-300 hover:-translate-y-1 hover:border-stone-900 hover:shadow-[0_24px_55px_rgba(44,36,24,0.12)]"
                     >
                       <div className="flex items-start justify-between gap-5">
                         <div>
@@ -168,7 +170,7 @@ export default async function Home() {
                             {library.name}
                           </h3>
                         </div>
-                        <span className="rounded-lg border border-stone-300 px-3 py-1 text-xs text-stone-500">
+                        <span className="rounded-full border border-stone-300 bg-white/70 px-3 py-1 text-xs text-stone-500">
                           {String(index + 1).padStart(2, "0")}
                         </span>
                       </div>
@@ -178,11 +180,11 @@ export default async function Home() {
                       </p>
 
                       <div className="mt-6 flex flex-wrap gap-2 text-xs text-stone-500">
-                        <span className="rounded-lg border border-stone-300 bg-white px-3 py-1.5">
+                        <span className="rounded-full border border-stone-300 bg-white px-3 py-1.5">
                           {library.articleCount} 篇文章
                         </span>
                         {library.updatedAt ? (
-                          <span className="rounded-lg border border-stone-300 bg-white px-3 py-1.5">
+                          <span className="rounded-full border border-stone-300 bg-white px-3 py-1.5">
                             更新于 {library.updatedAt}
                           </span>
                         ) : null}
@@ -194,7 +196,7 @@ export default async function Home() {
             </section>
           </div>
 
-          <aside className="rounded-lg border border-stone-300 bg-[#ebe4d8] p-6 lg:sticky lg:top-6 lg:self-start">
+          <aside className="rounded-[30px] border border-stone-300/80 bg-[#e8dece]/90 p-6 shadow-[0_18px_50px_rgba(44,36,24,0.08)] lg:sticky lg:top-6 lg:self-start">
             <p className="text-[11px] font-semibold uppercase tracking-[0.34em] text-stone-500">
               About
             </p>

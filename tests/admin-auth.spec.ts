@@ -67,6 +67,7 @@ test("admin can update security and public profile settings", async ({ page }) =
       "utf8",
     ),
   });
+  await page.getByRole("button", { name: "应用裁剪", exact: true }).click();
   await page.locator("#profile-signature").fill("记录工程现场的可复用路径。");
   await page.locator("#profile-tech-stack").fill("Next.js, React, TypeScript, Java");
   await page.getByRole("button", { name: "保存资料信息" }).click();
@@ -211,7 +212,7 @@ test("admin can reorder root articles, upload content, and delete folder plus kn
   await expect(page.locator("p[role='status']")).toBeVisible();
 
   await page.goto(
-    `/admin-archive-portal/tree?selected=${encodeURIComponent(`${uniqueId}/${folderName}/resource`)}&kind=resource`,
+    `/admin-archive-portal/tree?selected=${encodeURIComponent(`${uniqueId}/${folderName}/draft.md`)}&kind=article`,
   );
   await page.setInputFiles("#image-files", {
     name: "preview.svg",

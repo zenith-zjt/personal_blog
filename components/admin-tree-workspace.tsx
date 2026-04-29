@@ -80,7 +80,7 @@ function canDeleteNode(nodeKind: AdminSelectionKind) {
   return (
     nodeKind === "library" ||
     nodeKind === "directory" ||
-    nodeKind === "resource" ||
+    nodeKind === "assets" ||
     nodeKind === "article" ||
     nodeKind === "asset"
   );
@@ -99,8 +99,8 @@ function getSelectionSummary(kind: AdminSelectionKind) {
     return "当前选中普通目录，可上传 Markdown、创建子文件夹，并且支持同级目录排序。";
   }
 
-  if (kind === "resource") {
-    return "当前选中 resource 目录，支持多图上传，也可以直接删除整个资源目录。";
+  if (kind === "assets") {
+    return "当前选中文章 .assets 资源目录，支持多图上传，也可以直接删除整个文章资源目录。";
   }
 
   if (kind === "article") {
@@ -247,6 +247,7 @@ export function AdminTreeWorkspace({
   const moveKindRef = useRef<HTMLInputElement>(null);
   const moveDirectionRef = useRef<HTMLInputElement>(null);
   const moveTargetRef = useRef<HTMLInputElement>(null);
+  const moveTargetKindRef = useRef<HTMLInputElement>(null);
 
   const deleteFormRef = useRef<HTMLFormElement>(null);
   const deletePathRef = useRef<HTMLInputElement>(null);
@@ -267,15 +268,20 @@ export function AdminTreeWorkspace({
   const expandedLibrarySlug =
     selectedPath.split("/")[0] || libraries[0]?.slug || "";
   const canCreateDirectory = selectedKind === "library" || selectedKind === "directory";
-  const uploadMode = selectedKind === "resource" ? "resource" : canCreateDirectory ? "directory" : null;
+  const uploadMode = selectedKind === "article" ? "assets" : canCreateDirectory ? "directory" : null;
+  const uploadTargetPath =
+    selectedKind === "article"
+      ? selectedPath.replace(/\.md$/, ".assets")
+      : selectedPath;
 
   const submitMove = (options: {
     relativePath: string;
     nodeKind: AdminSelectionKind;
     direction?: "up" | "down";
     targetPath?: string;
+    targetKind?: AdminSelectionKind;
   }) => {
-    if (!moveFormRef.current || !movePathRef.current || !moveKindRef.current || !moveDirectionRef.current || !moveTargetRef.current) {
+    if (!moveFormRef.current || !movePathRef.current || !moveKindRef.current || !moveDirectionRef.current || !moveTargetRef.current || !moveTargetKindRef.current) {
       return;
     }
 
@@ -283,6 +289,7 @@ export function AdminTreeWorkspace({
     moveKindRef.current.value = options.nodeKind;
     moveDirectionRef.current.value = options.direction ?? "";
     moveTargetRef.current.value = options.targetPath ?? "";
+    moveTargetKindRef.current.value = options.targetKind ?? "";
     moveFormRef.current.requestSubmit();
   };
 
@@ -318,9 +325,21 @@ export function AdminTreeWorkspace({
       return;
     }
 
-    const sameKind = dragging.nodeKind === targetKind;
+    const sameLibrary =
+      dragging.relativePath.split("/")[0] === targetPath.split("/")[0];
     const sameParent = dragging.parentPath === getParentPath(targetPath, targetKind);
-    const valid = sameKind && sameParent && dragging.relativePath !== targetPath && canDragNode(targetKind);
+    const sameLevelMixed =
+      sameParent &&
+      (dragging.nodeKind === "article" || dragging.nodeKind === "directory") &&
+      (targetKind === "article" || targetKind === "directory");
+    const articleToContainer =
+      dragging.nodeKind === "article" &&
+      (targetKind === "directory" || targetKind === "library") &&
+      sameLibrary;
+    const valid =
+      dragging.relativePath !== targetPath &&
+      canDragNode(dragging.nodeKind) &&
+      (sameLevelMixed || articleToContainer);
 
     if (!valid) {
       return;
@@ -341,9 +360,21 @@ export function AdminTreeWorkspace({
       return;
     }
 
-    const sameKind = dragging.nodeKind === targetKind;
+    const sameLibrary =
+      dragging.relativePath.split("/")[0] === targetPath.split("/")[0];
     const sameParent = dragging.parentPath === getParentPath(targetPath, targetKind);
-    const valid = sameKind && sameParent && dragging.relativePath !== targetPath && canDragNode(targetKind);
+    const sameLevelMixed =
+      sameParent &&
+      (dragging.nodeKind === "article" || dragging.nodeKind === "directory") &&
+      (targetKind === "article" || targetKind === "directory");
+    const articleToContainer =
+      dragging.nodeKind === "article" &&
+      (targetKind === "directory" || targetKind === "library") &&
+      sameLibrary;
+    const valid =
+      dragging.relativePath !== targetPath &&
+      canDragNode(dragging.nodeKind) &&
+      (sameLevelMixed || articleToContainer);
 
     setDropTarget(null);
 
@@ -356,6 +387,7 @@ export function AdminTreeWorkspace({
       relativePath: dragging.relativePath,
       nodeKind: dragging.nodeKind,
       targetPath,
+      targetKind,
     });
     setDragging(null);
   };
@@ -367,6 +399,7 @@ export function AdminTreeWorkspace({
         <input ref={moveKindRef} type="hidden" name="nodeKind" />
         <input ref={moveDirectionRef} type="hidden" name="direction" />
         <input ref={moveTargetRef} type="hidden" name="targetPath" />
+        <input ref={moveTargetKindRef} type="hidden" name="targetKind" />
       </form>
 
       <form action={deleteAction} ref={deleteFormRef} className="hidden">
@@ -614,11 +647,11 @@ export function AdminTreeWorkspace({
               <AdminTreeUploadForm
                 key={`${selectedKind}:${selectedPath}`}
                 mode={uploadMode}
-                targetPath={selectedPath}
+                targetPath={uploadTargetPath}
               />
             ) : (
               <div className="rounded-[24px] border border-dashed border-stone-300 bg-white/70 px-4 py-8 text-sm leading-7 text-stone-500">
-                选择知识库根目录、普通目录或 resource 目录后，可在这里执行上传操作。
+                选择知识库根目录、普通目录或文章后，可在这里执行上传操作。
               </div>
             )}
           </div>

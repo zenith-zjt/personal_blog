@@ -41,6 +41,11 @@ export type AdminAccountSnapshot = {
   profile: AdminPublicProfile;
 };
 
+export type UploadedProfileFile = {
+  name: string;
+  arrayBuffer: () => Promise<ArrayBuffer>;
+};
+
 export type VerifyCredentialResult =
   | { ok: true; username: string }
   | { ok: false; message: string };
@@ -203,7 +208,7 @@ export function resolveProfileAvatarUrl(avatarUrl: string) {
     .join("/")}`;
 }
 
-async function saveAvatarFile(file: File) {
+async function saveAvatarFile(file: UploadedProfileFile) {
   const avatarName = ensureSafeResourceFileName(file.name);
   const buffer = Buffer.from(await file.arrayBuffer());
 
@@ -336,7 +341,7 @@ export async function updateAdminSecurity(input: {
 
 export async function updateAdminProfile(
   profile: AdminPublicProfile,
-  avatarFile?: File,
+  avatarFile?: UploadedProfileFile,
 ) {
   const account = await readAccountConfig();
   const nextAvatarUrl =

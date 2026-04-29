@@ -31,7 +31,28 @@ test("knowledge-base article page shows tree navigation and renders markdown tab
   await expect(page.getByLabel("frontend-foundations tree")).not.toContainText(
     "resource",
   );
+  await expect(page.getByLabel("frontend-foundations tree")).not.toContainText(
+    ".assets",
+  );
   await expect(page.getByRole("table").first()).toBeVisible();
+});
+
+test("knowledge-base article resolves colocated assets directory images", async ({
+  page,
+}) => {
+  const response = await page.goto(
+    "/kb/frontend-foundations/getting-started/welcome",
+  );
+
+  expect(response?.status()).toBe(200);
+  const articleImage = page.getByRole("img", { name: "article image" });
+
+  await expect(articleImage).toBeVisible();
+  await expect
+    .poll(() =>
+      articleImage.evaluate((image) => (image as HTMLImageElement).naturalWidth),
+    )
+    .toBeGreaterThan(0);
 });
 
 test("search flow finds an article from the homepage", async ({ page }) => {
@@ -54,9 +75,13 @@ test("search page shows empty state when no result is found", async ({ page }) =
 test("uploaded chinese filename article can be opened on the frontend", async ({
   page,
 }) => {
-  const response = await page.goto("/kb/frontend-foundations/%E5%BA%94%E4%BB%98");
+  const response = await page.goto(
+    "/kb/frontend-foundations/getting-started/%E5%BA%94%E4%BB%98",
+  );
 
   expect(response?.status()).toBe(200);
-  await expect(page).toHaveURL(/\/kb\/frontend-foundations\/%E5%BA%94%E4%BB%98$/);
+  await expect(page).toHaveURL(
+    /\/kb\/frontend-foundations\/getting-started\/%E5%BA%94%E4%BB%98$/,
+  );
   await expect(page.getByText("应付.md")).toBeVisible();
 });

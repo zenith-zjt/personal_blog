@@ -4,20 +4,21 @@ import path from "node:path";
 import { buildArticleHref } from "@/lib/content-paths";
 
 const CONTENT_ROOT = path.join(process.cwd(), "content");
-const RESOURCE_DIR_NAME = "resource";
+const LEGACY_RESOURCE_DIR_NAME = "resource";
+const ARTICLE_ASSETS_SUFFIX = ".assets";
 const ORDER_FILE_NAME = ".order.json";
 
 type FrontmatterRecord = Record<string, string>;
-type OrderBucket = "libraries" | "directories" | "articles" | "assets";
+type OrderBucket = "libraries" | "children" | "directories" | "articles" | "assets";
 
 type OrderConfig = Partial<Record<OrderBucket, string[]>>;
 
-export type TreeNodeType = "directory" | "article" | "resource" | "asset";
+export type TreeNodeType = "directory" | "article" | "assets" | "asset";
 export type AdminSelectionKind =
   | "library"
   | "directory"
   | "article"
-  | "resource"
+  | "assets"
   | "asset";
 export type MoveDirection = "up" | "down";
 
@@ -90,7 +91,7 @@ type UploadMarkdownInput = {
 };
 
 type UploadResourceInput = {
-  targetResourceDirectory: string;
+  targetAssetsDirectory: string;
   imageFiles: File[];
 };
 
@@ -105,9 +106,10 @@ type CreateContentDirectoryInput = {
 
 type MoveContentNodeInput = {
   relativePath: string;
-  nodeKind: Exclude<AdminSelectionKind, "resource">;
+  nodeKind: Exclude<AdminSelectionKind, "assets">;
   direction?: MoveDirection;
   targetPath?: string;
+  targetKind?: AdminSelectionKind;
 };
 
 function toPosixPath(...parts: string[]) {
@@ -130,6 +132,42 @@ function getParentRelativePath(relativePath: string) {
 function getBaseName(relativePath: string) {
   const parts = splitRelativePath(relativePath);
   return parts.at(-1) ?? "";
+}
+
+function isArticleAssetsDirectoryName(name: string) {
+  return name.endsWith(ARTICLE_ASSETS_SUFFIX);
+}
+
+function getArticleAssetsDirectoryName(markdownName: string) {
+  return `${path.basename(markdownName, ".md")}${ARTICLE_ASSETS_SUFFIX}`;
+}
+
+function getArticleAssetsRelativePath(markdownRelativePath: string) {
+  const parentPath = getParentRelativePath(markdownRelativePath);
+  return toPosixPath(
+    parentPath,
+    getArticleAssetsDirectoryName(getBaseName(markdownRelativePath)),
+  );
+}
+
+function getLibrarySlugFromRelativePath(relativePath: string) {
+  return splitRelativePath(relativePath)[0] ?? "";
+}
+
+function getMixedChildEntryNames(entries: Dirent[]) {
+  return entries
+    .filter((entry) => {
+      if (entry.name === ORDER_FILE_NAME || entry.name === LEGACY_RESOURCE_DIR_NAME) {
+        return false;
+      }
+
+      if (entry.isDirectory()) {
+        return !isArticleAssetsDirectoryName(entry.name);
+      }
+
+      return entry.isFile() && path.extname(entry.name).toLowerCase() === ".md";
+    })
+    .map((entry) => entry.name);
 }
 
 function ensureWithinContentRoot(targetPath: string) {
@@ -171,7 +209,11 @@ function ensureSafeDirectoryName(directoryName: string) {
     throw new Error("目录名无效。");
   }
 
-  if (normalized === RESOURCE_DIR_NAME || normalized === ORDER_FILE_NAME) {
+  if (
+    normalized === LEGACY_RESOURCE_DIR_NAME ||
+    normalized === ORDER_FILE_NAME ||
+    isArticleAssetsDirectoryName(normalized)
+  ) {
     throw new Error("目录名不可使用保留名。");
   }
 
@@ -261,7 +303,7 @@ function uniqueNames(names: string[]) {
 function cleanupOrderConfig(config: OrderConfig): OrderConfig {
   const nextConfig: OrderConfig = {};
 
-  (["libraries", "directories", "articles", "assets"] as const).forEach((key) => {
+  (["libraries", "children", "directories", "articles", "assets"] as const).forEach((key) => {
     const values = uniqueNames(config[key] ?? []);
     if (values.length > 0) {
       nextConfig[key] = values;
@@ -346,19 +388,27 @@ async function ensurePathDoesNotExist(
 
 function createAssetUrl(
   librarySlug: string,
-  articleDirParts: string[],
+  articleSlugParts: string[],
   resourcePath: string,
 ) {
-  const normalized = resourcePath
-    .replace(/^\.\/+/, "")
-    .replace(/^resource\//, "");
+  const articleFileName = articleSlugParts.at(-1) ?? "";
+  const articleDirParts = articleSlugParts.slice(0, -1);
+  const assetsDirectoryName = `${articleFileName}${ARTICLE_ASSETS_SUFFIX}`;
+  let normalized = resourcePath.replace(/^\.\/+/, "");
+
+  if (normalized === assetsDirectoryName) {
+    normalized = "";
+  } else if (normalized.startsWith(`${assetsDirectoryName}/`)) {
+    normalized = normalized.slice(assetsDirectoryName.length + 1);
+  }
+
   const segments = [
     "",
     "api",
     "assets",
     librarySlug,
     ...articleDirParts,
-    RESOURCE_DIR_NAME,
+    assetsDirectoryName,
   ];
 
   if (normalized.length > 0) {
@@ -372,7 +422,7 @@ function createAssetUrl(
 
 export function resolveMarkdownAssetPath(
   librarySlug: string,
-  articleDirParts: string[],
+  articleSlugParts: string[],
   rawPath: string,
 ) {
   if (
@@ -384,19 +434,19 @@ export function resolveMarkdownAssetPath(
     return rawPath;
   }
 
-  return createAssetUrl(librarySlug, articleDirParts, rawPath);
+  return createAssetUrl(librarySlug, articleSlugParts, rawPath);
 }
 
 function extractResolvedImageSources(
   markdown: string,
   librarySlug: string,
-  articleDirParts: string[],
+  articleSlugParts: string[],
 ) {
   const imagePattern = /!\[[^\]]*]\(([^)]+)\)/g;
   const matches = Array.from(markdown.matchAll(imagePattern));
 
   return matches.map((match) =>
-    resolveMarkdownAssetPath(librarySlug, articleDirParts, match[1].trim()),
+    resolveMarkdownAssetPath(librarySlug, articleSlugParts, match[1].trim()),
   );
 }
 
@@ -441,7 +491,10 @@ async function listRootLibraryDirectoryEntries() {
   const entries = await fs.readdir(CONTENT_ROOT, { withFileTypes: true });
 
   return entries.filter(
-    (entry) => entry.isDirectory() && entry.name !== RESOURCE_DIR_NAME,
+    (entry) =>
+      entry.isDirectory() &&
+      entry.name !== LEGACY_RESOURCE_DIR_NAME &&
+      !isArticleAssetsDirectoryName(entry.name),
   );
 }
 
@@ -452,54 +505,26 @@ function orderRootLibraries(names: string[], preferredOrder?: string[]) {
 function sortDirectoryEntries(
   entries: Dirent[],
   orderConfig: OrderConfig,
-  isResourceDirectory: boolean,
 ) {
-  const regularDirectories = entries.filter(
+  const childNames = getMixedChildEntryNames(entries);
+  const sortedChildren = sortNamesByOrder(childNames, [
+    ...(orderConfig.children ?? []),
+    ...(orderConfig.directories ?? []),
+    ...(orderConfig.articles ?? []),
+  ]);
+  const assetDirectories = entries.filter(
     (entry) =>
       entry.isDirectory() &&
-      entry.name !== RESOURCE_DIR_NAME &&
-      entry.name !== ORDER_FILE_NAME,
-  );
-  const resourceDirectories = entries.filter(
-    (entry) => entry.isDirectory() && entry.name === RESOURCE_DIR_NAME,
-  );
-  const markdownFiles = entries.filter(
-    (entry) =>
-      entry.isFile() &&
-      entry.name !== ORDER_FILE_NAME &&
-      path.extname(entry.name).toLowerCase() === ".md",
-  );
-  const assetFiles = isResourceDirectory
-    ? entries.filter(
-        (entry) =>
-          entry.isFile() &&
-          entry.name !== ORDER_FILE_NAME &&
-          path.extname(entry.name).toLowerCase() !== ".md",
-      )
-    : [];
-
-  const sortedDirectories = sortNamesByOrder(
-    regularDirectories.map((entry) => entry.name),
-    orderConfig.directories,
-  );
-  const sortedMarkdownFiles = sortNamesByOrder(
-    markdownFiles.map((entry) => entry.name),
-    orderConfig.articles,
-  );
-  const sortedAssetFiles = sortNamesByOrder(
-    assetFiles.map((entry) => entry.name),
-    orderConfig.assets,
+      isArticleAssetsDirectoryName(entry.name),
   );
 
   const entryMap = new Map(entries.map((entry) => [entry.name, entry]));
 
   return [
-    ...sortedDirectories.map((name) => entryMap.get(name)).filter(Boolean),
-    ...resourceDirectories.sort((left, right) =>
+    ...sortedChildren.map((name) => entryMap.get(name)).filter(Boolean),
+    ...assetDirectories.sort((left, right) =>
       left.name.localeCompare(right.name, "zh-Hans-CN"),
     ),
-    ...sortedMarkdownFiles.map((name) => entryMap.get(name)).filter(Boolean),
-    ...sortedAssetFiles.map((name) => entryMap.get(name)).filter(Boolean),
   ] as Dirent[];
 }
 
@@ -510,12 +535,9 @@ async function scanKnowledgeBaseDirectory(
 ): Promise<ScanResult> {
   const entries = await fs.readdir(absoluteDirPath, { withFileTypes: true });
   const orderConfig = await readOrderConfig(absoluteDirPath);
-  const isResourceDirectory =
-    path.basename(absoluteDirPath) === RESOURCE_DIR_NAME;
   const sortedEntries = sortDirectoryEntries(
     entries,
     orderConfig,
-    isResourceDirectory,
   );
 
   const tree: TreeNode[] = [];
@@ -527,8 +549,14 @@ async function scanKnowledgeBaseDirectory(
     const absoluteEntryPath = path.join(absoluteDirPath, entry.name);
 
     if (entry.isDirectory()) {
-      const type: TreeNodeType =
-        entry.name === RESOURCE_DIR_NAME ? "resource" : "directory";
+      if (entry.name === LEGACY_RESOURCE_DIR_NAME) {
+        continue;
+      }
+
+      if (isArticleAssetsDirectoryName(entry.name)) {
+        continue;
+      }
+
       const nested = await scanKnowledgeBaseDirectory(
         librarySlug,
         absoluteEntryPath,
@@ -538,9 +566,9 @@ async function scanKnowledgeBaseDirectory(
       tree.push({
         id: `${librarySlug}:${entryRelativePath}`,
         name: entry.name,
-        type,
+        type: "directory",
         path: entryRelativePath,
-        visibleInFrontend: type !== "resource",
+        visibleInFrontend: true,
         children: nested.tree,
       });
       articles.push(...nested.articles);
@@ -554,16 +582,6 @@ async function scanKnowledgeBaseDirectory(
     const extension = path.extname(entry.name).toLowerCase();
 
     if (extension !== ".md") {
-      if (isResourceDirectory) {
-        tree.push({
-          id: `${librarySlug}:${entryRelativePath}`,
-          name: entry.name,
-          type: "asset",
-          path: entryRelativePath,
-          visibleInFrontend: false,
-        });
-      }
-
       continue;
     }
 
@@ -625,10 +643,13 @@ async function collectDirectoryOptions(
   const directoryNames = sortNamesByOrder(
     entries
       .filter(
-        (entry) => entry.isDirectory() && entry.name !== RESOURCE_DIR_NAME,
+        (entry) =>
+          entry.isDirectory() &&
+          entry.name !== LEGACY_RESOURCE_DIR_NAME &&
+          !isArticleAssetsDirectoryName(entry.name),
       )
       .map((entry) => entry.name),
-    orderConfig.directories,
+    orderConfig.children ?? orderConfig.directories,
   );
 
   for (const directoryName of directoryNames) {
@@ -690,7 +711,7 @@ async function removeOrderName(
 
 async function listSiblingNames(
   directoryPath: string,
-  nodeKind: Exclude<AdminSelectionKind, "resource">,
+  nodeKind: Exclude<AdminSelectionKind, "assets">,
 ) {
   if (nodeKind === "library") {
     const libraries = await listKnowledgeBases();
@@ -699,23 +720,8 @@ async function listSiblingNames(
 
   const entries = await fs.readdir(directoryPath, { withFileTypes: true });
 
-  if (nodeKind === "directory") {
-    return entries
-      .filter(
-        (entry) => entry.isDirectory() && entry.name !== RESOURCE_DIR_NAME,
-      )
-      .map((entry) => entry.name);
-  }
-
-  if (nodeKind === "article") {
-    return entries
-      .filter(
-        (entry) =>
-          entry.isFile() &&
-          entry.name !== ORDER_FILE_NAME &&
-          path.extname(entry.name).toLowerCase() === ".md",
-      )
-      .map((entry) => entry.name);
+  if (nodeKind === "directory" || nodeKind === "article") {
+    return getMixedChildEntryNames(entries);
   }
 
   return entries
@@ -729,25 +735,24 @@ async function listSiblingNames(
 }
 
 function getOrderBucketByKind(
-  nodeKind: Exclude<AdminSelectionKind, "resource">,
+  nodeKind: Exclude<AdminSelectionKind, "assets">,
 ): OrderBucket {
   if (nodeKind === "library") return "libraries";
-  if (nodeKind === "directory") return "directories";
-  if (nodeKind === "article") return "articles";
+  if (nodeKind === "directory" || nodeKind === "article") return "children";
   return "assets";
 }
 
 function assertSortableNodeKind(
   nodeKind: AdminSelectionKind,
-): asserts nodeKind is Exclude<AdminSelectionKind, "resource"> {
-  if (nodeKind === "resource") {
-    throw new Error("resource 目录不支持排序。");
+): asserts nodeKind is Exclude<AdminSelectionKind, "assets"> {
+  if (nodeKind === "assets") {
+    throw new Error("文章资源目录不支持排序。");
   }
 }
 
 async function buildCurrentOrderedNames(
   directoryPath: string,
-  nodeKind: Exclude<AdminSelectionKind, "resource">,
+  nodeKind: Exclude<AdminSelectionKind, "assets">,
 ) {
   const bucket = getOrderBucketByKind(nodeKind);
   const current = await readOrderConfig(directoryPath);
@@ -757,7 +762,7 @@ async function buildCurrentOrderedNames(
 
 async function writeOrderedNames(
   directoryPath: string,
-  nodeKind: Exclude<AdminSelectionKind, "resource">,
+  nodeKind: Exclude<AdminSelectionKind, "assets">,
   names: string[],
 ) {
   const bucket = getOrderBucketByKind(nodeKind);
@@ -823,12 +828,12 @@ async function removeDirectoryTree(relativePath: string) {
   return normalizedPath;
 }
 
-async function removeResourceDirectory(relativePath: string) {
-  const { absolutePath } = resolveNodeLocation(relativePath, "resource");
+async function removeAssetsDirectory(relativePath: string) {
+  const { absolutePath } = resolveNodeLocation(relativePath, "assets");
   const stat = await fs.stat(absolutePath);
 
   if (!stat.isDirectory()) {
-    throw new Error("当前资源目录不存在。");
+    throw new Error("当前文章资源目录不存在。");
   }
 
   await fs.rm(absolutePath, { recursive: true, force: false });
@@ -943,7 +948,7 @@ export async function getDefaultArticleSlug(librarySlug: string) {
           path.extname(entry.name).toLowerCase() === ".md",
       )
       .map((entry) => entry.name),
-    orderConfig.articles,
+    orderConfig.children ?? orderConfig.articles,
   );
 
   if (rootMarkdownNames.length > 0) {
@@ -965,7 +970,6 @@ export async function readArticle(
   const rawMarkdown = await fs.readFile(absoluteMarkdownPath, "utf8");
   const parsed = parseMarkdownFile(rawMarkdown);
   const fileStem = normalizedSlug.at(-1) ?? librarySlug;
-  const articleDirParts = normalizedSlug.slice(0, -1);
 
   return {
     title: parsed.frontmatter.title ?? titleFromMarkdownBody(parsed.body, fileStem),
@@ -975,11 +979,11 @@ export async function readArticle(
     relativePath: toPosixPath(...normalizedSlug) + ".md",
     body: parsed.body,
     headings: extractHeadings(parsed.body),
-    assetBasePath: createAssetUrl(librarySlug, articleDirParts, ""),
+    assetBasePath: createAssetUrl(librarySlug, normalizedSlug, ""),
     resolvedImageSources: extractResolvedImageSources(
       parsed.body,
       librarySlug,
-      articleDirParts,
+      normalizedSlug,
     ),
   };
 }
@@ -1087,7 +1091,11 @@ export async function uploadMarkdownToDirectory({
   }
 
   await fs.writeFile(markdownPath, markdownBuffer);
-  await appendOrderName(writableRoot, "articles", markdownName);
+  await fs.mkdir(
+    path.join(writableRoot, getArticleAssetsDirectoryName(markdownName)),
+    { recursive: true },
+  );
+  await appendOrderName(writableRoot, "children", markdownName);
 
   return {
     targetDirectory: normalizeRelativePath(targetDirectory),
@@ -1096,19 +1104,16 @@ export async function uploadMarkdownToDirectory({
 }
 
 export async function uploadImagesToResourceDirectory({
-  targetResourceDirectory,
+  targetAssetsDirectory,
   imageFiles,
 }: UploadResourceInput) {
-  if (!targetResourceDirectory.trim()) {
-    throw new Error("请选择资源目录。");
+  if (!targetAssetsDirectory.trim()) {
+    throw new Error("请选择文章资源目录。");
   }
 
-  const normalizedTarget = normalizeRelativePath(targetResourceDirectory);
-  if (
-    !normalizedTarget.endsWith(`/${RESOURCE_DIR_NAME}`) &&
-    normalizedTarget !== RESOURCE_DIR_NAME
-  ) {
-    throw new Error("图片只能上传到 resource 目录。");
+  const normalizedTarget = normalizeRelativePath(targetAssetsDirectory);
+  if (!isArticleAssetsDirectoryName(getBaseName(normalizedTarget))) {
+    throw new Error("图片只能上传到文章同级的 .assets 目录。");
   }
 
   if (imageFiles.length === 0) {
@@ -1153,7 +1158,7 @@ export async function uploadImagesToResourceDirectory({
   }
 
   return {
-    targetResourceDirectory: normalizedTarget,
+    targetAssetsDirectory: normalizedTarget,
     imageCount: imageFiles.length,
   };
 }
@@ -1173,14 +1178,14 @@ export async function createKnowledgeBase({
   );
 
   await fs.mkdir(libraryRoot, { recursive: true });
-  await fs.mkdir(path.join(libraryRoot, RESOURCE_DIR_NAME), { recursive: true });
   await fs.writeFile(
     path.join(libraryRoot, "overview.md"),
     createDefaultOverviewMarkdown(normalizedLibraryName),
     "utf8",
   );
+  await fs.mkdir(path.join(libraryRoot, "overview.assets"), { recursive: true });
   await appendOrderName(CONTENT_ROOT, "libraries", normalizedLibraryName);
-  await appendOrderName(libraryRoot, "articles", "overview.md");
+  await appendOrderName(libraryRoot, "children", "overview.md");
 
   return {
     librarySlug: normalizedLibraryName,
@@ -1210,8 +1215,7 @@ export async function createContentDirectory({
   );
 
   await fs.mkdir(nextDirectory, { recursive: true });
-  await fs.mkdir(path.join(nextDirectory, RESOURCE_DIR_NAME), { recursive: true });
-  await appendOrderName(parentDirectory, "directories", normalizedDirectoryName);
+  await appendOrderName(parentDirectory, "children", normalizedDirectoryName);
 
   return {
     directoryPath: toPosixPath(normalizedTargetDirectory, normalizedDirectoryName),
@@ -1248,8 +1252,8 @@ export async function deleteContentNode(
     };
   }
 
-  if (nodeKind === "resource") {
-    await removeResourceDirectory(normalizedPath);
+  if (nodeKind === "assets") {
+    await removeAssetsDirectory(normalizedPath);
     return {
       relativePath: normalizedPath,
       parentPath: getParentRelativePath(normalizedPath),
@@ -1265,6 +1269,14 @@ export async function deleteContentNode(
   }
 
   await fs.unlink(absolutePath);
+  if (nodeKind === "article") {
+    await fs.rm(
+      ensureWithinContentRoot(
+        path.join(CONTENT_ROOT, getArticleAssetsRelativePath(normalizedPath)),
+      ),
+      { recursive: true, force: true },
+    );
+  }
   await removeOrderName(
     parentAbsolutePath,
     getOrderBucketByKind(nodeKind),
@@ -1282,12 +1294,87 @@ export async function moveContentNode({
   nodeKind,
   direction,
   targetPath,
+  targetKind,
 }: MoveContentNodeInput) {
   assertSortableNodeKind(nodeKind);
 
   const source = resolveNodeLocation(relativePath, nodeKind);
   const siblings = await buildCurrentOrderedNames(source.parentAbsolutePath, nodeKind);
   const sourceIndex = siblings.indexOf(source.nodeName);
+
+  if (nodeKind === "article" && targetPath) {
+    const normalizedTargetKind = targetKind ?? "article";
+    const target = resolveNodeLocation(targetPath, normalizedTargetKind);
+    const sourceLibrary = getLibrarySlugFromRelativePath(source.normalizedPath);
+    const targetLibrary = getLibrarySlugFromRelativePath(target.normalizedPath);
+
+    if (sourceLibrary !== targetLibrary) {
+      throw new Error("文章只能在同一个知识库内跨文件夹移动。");
+    }
+
+    const targetIsContainer =
+      normalizedTargetKind === "library" || normalizedTargetKind === "directory";
+    const destinationParentRelativePath = targetIsContainer
+      ? target.normalizedPath
+      : target.parentRelativePath;
+    const destinationParentAbsolutePath = targetIsContainer
+      ? target.absolutePath
+      : target.parentAbsolutePath;
+    const targetSiblings = await buildCurrentOrderedNames(
+      destinationParentAbsolutePath,
+      "article",
+    );
+    const sameParent = source.parentRelativePath === destinationParentRelativePath;
+    const sourceAssetsPath = ensureWithinContentRoot(
+      path.join(CONTENT_ROOT, getArticleAssetsRelativePath(source.normalizedPath)),
+    );
+    const destinationArticlePath = ensureWithinContentRoot(
+      path.join(destinationParentAbsolutePath, source.nodeName),
+    );
+    const destinationAssetsPath = ensureWithinContentRoot(
+      path.join(
+        destinationParentAbsolutePath,
+        getArticleAssetsDirectoryName(source.nodeName),
+      ),
+    );
+
+    if (!sameParent) {
+      await ensurePathDoesNotExist(
+        destinationArticlePath,
+        `目标目录中已存在同名文章：${source.nodeName}`,
+      );
+      await ensurePathDoesNotExist(
+        destinationAssetsPath,
+        `目标目录中已存在同名资源目录：${getArticleAssetsDirectoryName(source.nodeName)}`,
+      );
+      await fs.rename(source.absolutePath, destinationArticlePath);
+      try {
+        await fs.rename(sourceAssetsPath, destinationAssetsPath);
+      } catch (error) {
+        if (
+          !(error instanceof Error) ||
+          !("code" in error) ||
+          error.code !== "ENOENT"
+        ) {
+          throw error;
+        }
+      }
+      await removeOrderName(source.parentAbsolutePath, "children", source.nodeName);
+    }
+
+    const nextNames = targetSiblings.filter((name) => name !== source.nodeName);
+    const targetIndex = targetIsContainer
+      ? nextNames.length
+      : nextNames.indexOf(target.nodeName);
+    nextNames.splice(Math.max(0, targetIndex), 0, source.nodeName);
+    await writeOrderedNames(destinationParentAbsolutePath, "article", nextNames);
+
+    return {
+      relativePath: toPosixPath(destinationParentRelativePath, source.nodeName),
+      parentPath: destinationParentRelativePath,
+      changed: true,
+    };
+  }
 
   if (sourceIndex === -1) {
     throw new Error("当前节点不存在于可排序列表中。");
@@ -1296,7 +1383,7 @@ export async function moveContentNode({
   let nextIndex = sourceIndex;
 
   if (targetPath) {
-    const target = resolveNodeLocation(targetPath, nodeKind);
+    const target = resolveNodeLocation(targetPath, targetKind ?? nodeKind);
 
     if (target.parentRelativePath !== source.parentRelativePath) {
       throw new Error("只能在同一父级目录下拖动排序。");
@@ -1349,7 +1436,7 @@ export async function getStageOneSnapshot() {
 
   return {
     contentRoot: CONTENT_ROOT,
-    resourceDirectoryName: RESOURCE_DIR_NAME,
+    resourceDirectoryName: ARTICLE_ASSETS_SUFFIX,
     libraries: librariesWithTrees,
   };
 }
@@ -1364,8 +1451,8 @@ export async function readAssetFile(
   );
   const normalized = relativeAssetPath.map((segment) => segment.toLowerCase());
 
-  if (!normalized.includes(RESOURCE_DIR_NAME)) {
-    throw new Error("Only assets under a resource directory can be served.");
+  if (!normalized.some(isArticleAssetsDirectoryName)) {
+    throw new Error("Only assets under an article .assets directory can be served.");
   }
 
   const fileBuffer = await fs.readFile(absoluteAssetPath);

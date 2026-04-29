@@ -17,7 +17,7 @@ const adminNavItems = [
   },
   {
     key: "tree",
-    label: "知识库管理树",
+    label: "知识库管理",
     href: "/admin-archive-portal/tree",
   },
   {
@@ -39,51 +39,73 @@ export function AdminShell({
   children,
 }: AdminShellProps) {
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#f2eadf_0%,#e7dccb_44%,#ddd0be_100%)] px-4 py-4 text-stone-900 md:px-6 md:py-6">
-      <div className="mx-auto flex w-full max-w-[1500px] flex-col gap-6">
-        <section className="rounded-[34px] border border-stone-300/70 bg-[linear-gradient(135deg,#1f2430_0%,#2d3646_44%,#8f6a34_155%)] px-6 py-8 text-stone-50 shadow-[0_30px_90px_rgba(44,36,24,0.12)] md:px-10 md:py-12">
-          <div className="flex flex-wrap items-start justify-between gap-6">
-            <div className="max-w-3xl">
-              <p className="text-[11px] uppercase tracking-[0.36em] text-stone-300">
-                Admin Portal
-              </p>
-              <h1 className="mt-5 text-4xl font-semibold leading-tight md:text-5xl">
-                {title}
-              </h1>
-              <p className="mt-6 text-base leading-8 text-stone-200">
-                {description}
-              </p>
-            </div>
-
-            <form action={adminLogoutAction}>
-              <button
-                type="submit"
-                className="rounded-full border border-stone-300/40 bg-white/10 px-5 py-3 text-sm font-medium text-stone-50 transition hover:bg-white/20"
-              >
-                退出登录
-              </button>
-            </form>
+    <main className="min-h-screen bg-[radial-gradient(circle_at_12%_0%,#f4eadb_0%,#e9ddcb_42%,#d9cbb7_100%)] px-4 py-4 text-stone-900 md:px-6 md:py-6">
+      <div className="mx-auto grid w-full max-w-[1560px] gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+        <aside className="rounded-[28px] border border-stone-300/70 bg-[linear-gradient(180deg,#202632,#151922)] p-4 text-stone-50 shadow-[0_26px_80px_rgba(37,29,19,0.16)] lg:sticky lg:top-6 lg:h-[calc(100vh-48px)]">
+          <div className="rounded-[22px] border border-white/10 bg-white/8 px-4 py-4">
+            <p className="text-[10px] uppercase tracking-[0.34em] text-stone-400">
+              Admin Portal
+            </p>
+            <p className="mt-2 truncate text-base font-semibold text-white">
+              Knowledge Desk
+            </p>
           </div>
 
-          <nav className="mt-8 flex flex-wrap gap-3" aria-label="Admin navigation">
-            {adminNavItems.map((item) => (
+          <nav className="mt-4 space-y-2" aria-label="Admin navigation">
+            {adminNavItems.map((item, index) => (
               <Link
                 key={item.key}
                 href={item.href}
                 aria-current={currentPath === item.key ? "page" : undefined}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                className={`group flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
                   currentPath === item.key
-                    ? "border border-stone-200 bg-white !text-black shadow-[0_8px_24px_rgba(255,255,255,0.22)]"
-                    : "border border-stone-300/40 bg-white/10 text-stone-50 hover:bg-white/20"
+                    ? "border-white bg-[#f8f2e8] !text-stone-950 shadow-[0_18px_45px_rgba(0,0,0,0.22)]"
+                    : "border-white/10 bg-white/5 text-stone-300 hover:border-white/25 hover:bg-white/10 hover:text-white"
                 }`}
               >
-                {item.label}
+                <span
+                  className={`grid h-7 w-7 place-items-center rounded-full text-[11px] ${
+                    currentPath === item.key
+                      ? "bg-stone-950 text-white"
+                      : "border border-white/10 text-stone-400 group-hover:text-white"
+                  }`}
+                >
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+                <span className="min-w-0 truncate">{item.label}</span>
               </Link>
             ))}
           </nav>
-        </section>
 
-        {children}
+          <form action={adminLogoutAction} className="mt-5">
+            <button
+              type="submit"
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-semibold text-stone-300 transition hover:border-white/25 hover:bg-white/10 hover:text-white"
+            >
+              退出登录
+            </button>
+          </form>
+        </aside>
+
+        <div className="min-w-0 space-y-5">
+          <section className="rounded-[26px] border border-stone-300/70 bg-[linear-gradient(135deg,#fbf7ef_0%,#efe5d7_100%)] px-5 py-3 shadow-[0_18px_55px_rgba(44,36,24,0.08)]">
+            <div className="flex min-h-12 flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
+                <h1 className="truncate text-xl font-semibold leading-7 text-stone-950 md:text-2xl">
+                  {title}
+                </h1>
+                <p className="mt-1 line-clamp-1 text-sm text-stone-500">
+                  {description}
+                </p>
+              </div>
+              <span className="rounded-full border border-stone-300 bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.26em] text-stone-500">
+                Control
+              </span>
+            </div>
+          </section>
+
+          {children}
+        </div>
       </div>
     </main>
   );

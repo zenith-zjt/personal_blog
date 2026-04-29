@@ -17,6 +17,7 @@ type KnowledgeBaseShellProps = {
   }>;
   tree: TreeNode[];
   articleTitle: string;
+  articleHeadings: string[];
   articleMeta: React.ReactNode;
   articleBody: React.ReactNode;
 };
@@ -100,6 +101,7 @@ export function KnowledgeBaseShell({
   breadcrumbs,
   tree,
   articleTitle,
+  articleHeadings,
   articleMeta,
   articleBody,
 }: KnowledgeBaseShellProps) {
@@ -107,9 +109,9 @@ export function KnowledgeBaseShell({
   const currentPath = currentSlugParts.join("/");
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#f6f2ea_0%,#efe8dc_38%,#e8e0d3_100%)] px-4 py-4 text-stone-900 md:px-6 md:py-6">
-      <div className="mx-auto flex w-full max-w-[1600px] flex-col gap-4 lg:grid lg:grid-cols-[320px_minmax(0,1fr)] lg:gap-6">
-        <aside className="hidden rounded-[30px] border border-stone-300/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.88),rgba(248,244,236,0.92))] p-5 shadow-[0_30px_90px_rgba(44,36,24,0.08)] lg:block">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_18%_0%,#f8efe1_0%,#efe4d3_44%,#ded0bc_100%)] px-4 py-4 text-stone-900 md:px-6 md:py-6">
+      <div className="mx-auto flex w-full flex-col gap-4 lg:ml-[344px] lg:mr-[304px] lg:w-auto lg:max-w-[calc(100vw-672px)]">
+        <aside className="hidden rounded-[30px] border border-stone-300/70 bg-[linear-gradient(180deg,rgba(255,252,246,0.94),rgba(244,237,226,0.92))] p-5 shadow-[0_30px_90px_rgba(44,36,24,0.09)] lg:fixed lg:bottom-6 lg:left-6 lg:top-6 lg:block lg:w-[320px] lg:overflow-y-auto">
           <div className="rounded-[24px] bg-stone-900 px-5 py-6 text-stone-50">
             <p className="text-[11px] uppercase tracking-[0.32em] text-stone-300">
               Knowledge Base
@@ -117,9 +119,6 @@ export function KnowledgeBaseShell({
             <h1 className="mt-3 text-2xl font-semibold leading-tight">
               {libraryName}
             </h1>
-            <p className="mt-3 text-sm leading-7 text-stone-300">
-              公开知识库浏览入口，左侧按目录层级导航，右侧专注阅读正文。
-            </p>
           </div>
 
           <div className="mt-5">
@@ -140,7 +139,7 @@ export function KnowledgeBaseShell({
           </nav>
         </aside>
 
-        <section className="min-w-0 rounded-[30px] border border-stone-300/70 bg-[linear-gradient(180deg,rgba(255,255,255,0.92),rgba(249,246,240,0.88))] shadow-[0_30px_90px_rgba(44,36,24,0.08)]">
+        <section className="min-w-0 rounded-[30px] border border-stone-300/70 bg-[linear-gradient(180deg,rgba(255,252,246,0.95),rgba(248,241,230,0.9))] shadow-[0_30px_90px_rgba(44,36,24,0.09)]">
           <header className="border-b border-stone-300/70 px-4 py-4 md:px-8 md:py-6">
             <div className="flex flex-wrap items-center gap-3">
               <button
@@ -209,7 +208,7 @@ export function KnowledgeBaseShell({
           </header>
 
           <article className="px-4 py-6 md:px-8 md:py-10">
-            <div className="max-w-4xl">
+            <div className="mx-auto max-w-3xl">
               <p className="text-[11px] uppercase tracking-[0.35em] text-stone-500">
                 Article
               </p>
@@ -219,9 +218,38 @@ export function KnowledgeBaseShell({
               <div className="mt-6">{articleMeta}</div>
             </div>
 
-            <div className="mt-10">{articleBody}</div>
+            <div className="mx-auto mt-10 max-w-3xl">{articleBody}</div>
           </article>
         </section>
+
+        <aside className="hidden lg:fixed lg:bottom-6 lg:right-6 lg:top-6 lg:block lg:w-[240px]">
+          <nav className="h-full overflow-y-auto rounded-[30px] border border-stone-300/70 bg-[#fffaf2]/80 p-5 shadow-[0_30px_90px_rgba(44,36,24,0.09)] backdrop-blur" aria-label="文章内导航">
+            <p className="text-[11px] uppercase tracking-[0.32em] text-stone-500">
+              On This Page
+            </p>
+            <h2 className="mt-3 text-lg font-semibold text-stone-900">
+              文章导航
+            </h2>
+            {articleHeadings.length > 0 ? (
+              <ol className="mt-5 space-y-2">
+                {articleHeadings.map((heading, index) => (
+                  <li key={`${heading}-${index}`}>
+                    <a
+                      href={`#heading-${index}`}
+                      className="block rounded-2xl px-3 py-2 text-sm leading-6 text-stone-600 transition hover:bg-stone-100 hover:text-stone-950"
+                    >
+                      {heading}
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="mt-5 text-sm leading-7 text-stone-500">
+                当前文章没有可展示的标题层级。
+              </p>
+            )}
+          </nav>
+        </aside>
       </div>
     </main>
   );

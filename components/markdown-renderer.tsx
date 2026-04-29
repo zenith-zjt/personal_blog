@@ -209,18 +209,27 @@ export function MarkdownRenderer({
       resolvedSrc: resolvedImageSources[imageOffset] ?? block.src,
     };
   });
+  const headingIndexByBlock = new Map<number, number>();
+  let headingCursor = -1;
+  resolvedBlocks.forEach((block, index) => {
+    if (block.type === "heading") {
+      headingCursor += 1;
+      headingIndexByBlock.set(index, headingCursor);
+    }
+  });
 
   return (
-    <div className="max-w-4xl space-y-6 text-[15px] leading-8 text-stone-700 md:text-[17px]">
+    <div className="space-y-6 text-[15px] leading-8 text-stone-700 md:text-[17px]">
       {resolvedBlocks.map((block, blockIndex) => {
         if (block.type === "heading") {
+          const currentHeadingIndex = headingIndexByBlock.get(blockIndex) ?? 0;
           if (shouldSkipFirstTitle && blockIndex === firstHeadingIndex) {
             return null;
           }
 
           if (block.level === 1) {
             return (
-              <h3 key={`heading-${blockIndex}`} className="text-3xl font-semibold text-stone-900">
+              <h3 id={`heading-${currentHeadingIndex}`} key={`heading-${blockIndex}`} className="scroll-mt-8 text-3xl font-semibold text-stone-900">
                 {block.text}
               </h3>
             );
@@ -229,8 +238,9 @@ export function MarkdownRenderer({
           if (block.level === 2) {
             return (
               <h4
+                id={`heading-${currentHeadingIndex}`}
                 key={`heading-${blockIndex}`}
-                className="pt-4 text-2xl font-semibold text-stone-900"
+                className="scroll-mt-8 pt-4 text-2xl font-semibold text-stone-900"
               >
                 {block.text}
               </h4>
@@ -239,8 +249,9 @@ export function MarkdownRenderer({
 
           return (
             <h5
+              id={`heading-${currentHeadingIndex}`}
               key={`heading-${blockIndex}`}
-              className="pt-3 text-lg font-semibold text-stone-800"
+              className="scroll-mt-8 pt-3 text-lg font-semibold text-stone-800"
             >
               {block.text}
             </h5>

@@ -115,17 +115,16 @@ function isImageFile(entryName: string) {
   return ALLOWED_IMAGE_EXTENSIONS.has(path.extname(entryName).toLowerCase());
 }
 
-function isResourceEntry(entryName: string) {
+function isArticleAssetsEntry(entryName: string) {
   return entryName
     .split("/")
-    .map((segment) => segment.toLowerCase())
-    .includes("resource");
+    .some((segment) => segment.toLowerCase().endsWith(".assets"));
 }
 
 function isAllowedBlogMigrationEntry(entryName: string) {
   const baseName = path.posix.basename(entryName);
 
-  if (isResourceEntry(entryName)) {
+  if (isArticleAssetsEntry(entryName)) {
     return isImageFile(entryName);
   }
 

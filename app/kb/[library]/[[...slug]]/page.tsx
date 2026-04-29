@@ -120,6 +120,7 @@ export default async function KnowledgeBaseArticlePage({
       breadcrumbs={breadcrumbs}
       tree={tree}
       articleTitle={article.title}
+      articleHeadings={article.headings}
       articleMeta={
         <div className="flex flex-wrap items-center gap-3 text-sm text-stone-500">
           <span className="rounded-full border border-stone-300 bg-white/80 px-3 py-1">

@@ -115,7 +115,7 @@ export function AdminCreateDirectoryForm({
       </div>
 
       <p className="text-xs leading-6 text-stone-500">
-        新建文件夹会自动生成同级 `resource` 子目录。
+        新建文章时会自动生成同级 `文章名.assets` 资源目录。
       </p>
 
       <Feedback state={state} />

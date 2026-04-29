@@ -1,3 +1,0 @@
-# Beta
-
-root beta

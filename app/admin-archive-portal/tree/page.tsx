@@ -30,7 +30,7 @@ function normalizeKind(
     kind === "library" ||
     kind === "directory" ||
     kind === "article" ||
-    kind === "resource" ||
+    kind === "assets" ||
     kind === "asset"
   ) {
     return kind;
@@ -44,8 +44,8 @@ function normalizeKind(
     return "library";
   }
 
-  if (selectedPath.endsWith("/resource")) {
-    return "resource";
+  if (selectedPath.endsWith(".assets")) {
+    return "assets";
   }
 
   return selectedPath.endsWith(".md") ? "article" : "directory";

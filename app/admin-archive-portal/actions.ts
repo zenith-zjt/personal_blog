@@ -15,6 +15,7 @@ import {
   updateAdminProfile,
   updateAdminSecurity,
   type AdminPublicProfile,
+  type UploadedProfileFile,
 } from "@/lib/admin-profile";
 import {
   importBlogMigrationZip,
@@ -48,12 +49,28 @@ export type AdminSettingsFormState = {
 
 type TreeFlashStatus = "success" | "error";
 
+type UploadedActionFile = UploadedProfileFile & {
+  size?: number;
+};
+
+function isUploadedActionFile(value: unknown): value is UploadedActionFile {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "name" in value &&
+    typeof value.name === "string" &&
+    value.name.length > 0 &&
+    "arrayBuffer" in value &&
+    typeof value.arrayBuffer === "function"
+  );
+}
+
 function normalizeSelectionKind(kind: string | null | undefined): AdminSelectionKind {
   if (
     kind === "library" ||
     kind === "directory" ||
     kind === "article" ||
-    kind === "resource" ||
+    kind === "assets" ||
     kind === "asset"
   ) {
     return kind;
@@ -69,8 +86,8 @@ function inferSelectionKind(relativePath: string): AdminSelectionKind {
     return "library";
   }
 
-  if (normalized.endsWith("/resource")) {
-    return "resource";
+  if (normalized.endsWith(".assets") || normalized.includes(".assets/")) {
+    return normalized.endsWith(".assets") ? "assets" : "asset";
   }
 
   return path.extname(normalized).toLowerCase() === ".md" ? "article" : "asset";
@@ -149,7 +166,7 @@ export async function adminUpdateProfileAction(
         githubUrl: String(formData.get("githubUrl") ?? ""),
         location: String(formData.get("location") ?? ""),
       } satisfies AdminPublicProfile,
-      avatarFile instanceof File ? avatarFile : undefined,
+      isUploadedActionFile(avatarFile) ? avatarFile : undefined,
     );
 
     revalidateAdminAndPublicPaths();
@@ -175,7 +192,7 @@ export async function adminImportSystemBackupAction(
   const backupFile = formData.get("backupFile");
   const overwrite = String(formData.get("overwrite") ?? "") === "true";
 
-  if (!(backupFile instanceof File) || !backupFile.name) {
+  if (!isUploadedActionFile(backupFile)) {
     return {
       success: false,
       message: "请上传系统备份 ZIP 文件。",
@@ -210,7 +227,7 @@ export async function adminImportBlogMigrationAction(
 
   const migrationFile = formData.get("migrationFile");
 
-  if (!(migrationFile instanceof File) || !migrationFile.name) {
+  if (!isUploadedActionFile(migrationFile)) {
     return {
       success: false,
       message: "请上传博客迁移 ZIP 文件。",
@@ -286,8 +303,8 @@ async function buildFallbackTreeSelection(preferredPath?: string) {
     if (libraries.some((library) => library.slug === librarySlug)) {
       return {
         selected: preferredPath,
-        kind: preferredPath.endsWith("/resource")
-          ? ("resource" as const)
+        kind: preferredPath.endsWith(".assets")
+          ? ("assets" as const)
           : preferredPath.includes("/")
             ? ("directory" as const)
             : ("library" as const),
@@ -353,8 +370,10 @@ export async function adminUploadResourceImagesAction(
 ) {
   await requireAdminSession();
 
-  const targetResourceDirectory = String(
-    formData.get("targetResourceDirectory") ?? "",
+  const targetAssetsDirectory = String(
+    formData.get("targetAssetsDirectory") ??
+      formData.get("targetResourceDirectory") ??
+      "",
   ).trim();
   const imageEntries = formData.getAll("imageFiles");
   const imageFiles = imageEntries.filter(
@@ -370,12 +389,12 @@ export async function adminUploadResourceImagesAction(
 
   try {
     const result = await uploadImagesToResourceDirectory({
-      targetResourceDirectory,
+      targetAssetsDirectory,
       imageFiles,
     });
 
     revalidateAdminAndPublicPaths();
-    revalidatePath(`/kb/${result.targetResourceDirectory.split("/")[0]}`);
+    revalidatePath(`/kb/${result.targetAssetsDirectory.split("/")[0]}`);
 
     return {
       success: true,
@@ -463,11 +482,12 @@ export async function adminMoveTreeNodeAction(
   const targetPath = String(formData.get("targetPath") ?? "").trim();
   const direction = String(formData.get("direction") ?? "").trim();
   const nodeKind = normalizeSelectionKind(String(formData.get("nodeKind") ?? ""));
+  const targetKind = normalizeSelectionKind(String(formData.get("targetKind") ?? ""));
 
-  if (nodeKind === "resource") {
+  if (nodeKind === "assets") {
     return {
       success: false,
-      message: "resource 目录不支持排序。",
+      message: "文章资源目录不支持排序。",
     };
   }
 
@@ -476,6 +496,7 @@ export async function adminMoveTreeNodeAction(
       relativePath,
       nodeKind,
       targetPath: targetPath || undefined,
+      targetKind: targetPath ? targetKind : undefined,
       direction:
         direction === "up" || direction === "down" ? direction : undefined,
     });
