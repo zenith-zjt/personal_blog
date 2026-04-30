@@ -1,10 +1,7 @@
 import type { Metadata } from "next";
 
 import { AdminLoginForm } from "@/components/admin-login-form";
-import {
-  getAdminCredentialHints,
-  redirectIfAdminSessionExists,
-} from "@/lib/admin-auth";
+import { redirectIfAdminSessionExists } from "@/lib/admin-auth";
 
 export const metadata: Metadata = {
   title: "管理员登录 | 个人博客知识库",
@@ -13,7 +10,6 @@ export const metadata: Metadata = {
 
 export default async function AdminLoginPage() {
   await redirectIfAdminSessionExists();
-  const credentialHints = await getAdminCredentialHints();
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,#efe6d8_0%,#e8ddcb_44%,#ded2c0_100%)] px-4 py-4 text-stone-900 md:px-6 md:py-6">
@@ -23,24 +19,29 @@ export default async function AdminLoginPage() {
             Hidden Admin
           </p>
           <h1 className="mt-5 text-4xl font-semibold leading-tight md:text-5xl">
-            隐藏后台访问控制
+            后台访问控制
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-8 text-stone-200">
-            这是仅管理员可访问的后台入口，不会在任何前台导航和公开页面中暴露。当前阶段已启用单管理员登录与会话维持。
+            后台入口不在前台暴露，支持通过环境变量修改入口路径。登录失败会触发临时限流，会话使用
+            `httpOnly` Cookie 并在服务端验签。
           </p>
 
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             <div className="rounded-[24px] border border-stone-600/70 bg-white/5 p-5">
               <p className="text-[11px] uppercase tracking-[0.28em] text-stone-300">
-                默认账号
+                Path Control
               </p>
-              <p className="mt-3 text-lg font-medium">{credentialHints.defaultUsername}</p>
+              <p className="mt-3 text-sm leading-7 text-stone-200">
+                使用 ADMIN_ROUTE_BASE 配置后台外部入口。
+              </p>
             </div>
             <div className="rounded-[24px] border border-stone-600/70 bg-white/5 p-5">
               <p className="text-[11px] uppercase tracking-[0.28em] text-stone-300">
-                默认密码
+                Login Guard
               </p>
-              <p className="mt-3 text-lg font-medium">{credentialHints.defaultPassword}</p>
+              <p className="mt-3 text-sm leading-7 text-stone-200">
+                连续失败会短暂锁定当前来源与账号组合。
+              </p>
             </div>
           </div>
         </section>
@@ -49,9 +50,11 @@ export default async function AdminLoginPage() {
           <p className="text-[11px] uppercase tracking-[0.32em] text-stone-500">
             Authentication
           </p>
-          <h2 className="mt-4 text-3xl font-semibold text-stone-900">管理员登录</h2>
+          <h2 className="mt-4 text-3xl font-semibold text-stone-900">
+            管理员登录
+          </h2>
           <p className="mt-4 text-sm leading-7 text-stone-600">
-            登录成功后会写入 `httpOnly` 会话 cookie，并对隐藏后台页面进行访问控制。
+            不再展示默认凭据；首次部署后请尽快修改默认账号密码。
           </p>
 
           <div className="mt-8">

@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  personal-blog:
+    build: .
+    image: personal-blog:${IMAGE_TAG:-latest}
+    container_name: personal_blog
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      ADMIN_ROUTE_BASE: ${ADMIN_ROUTE_BASE:-/admin-archive-portal}
+      ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?ADMIN_SESSION_SECRET is required}
+    volumes:
+      - blog_data:/app/data
+      - blog_content:/app/content
+
+volumes:
+  blog_data:
+  blog_content:

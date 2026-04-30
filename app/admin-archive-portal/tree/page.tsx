@@ -7,6 +7,7 @@ import {
   getAdminKnowledgeBaseTrees,
   type AdminSelectionKind,
 } from "@/lib/content";
+import { getAdminPath } from "@/lib/admin-paths";
 
 export const metadata: Metadata = {
   title: "知识库管理树 | 个人博客知识库",
@@ -68,6 +69,7 @@ export default async function AdminTreePage({
       currentPath="tree"
     >
       <AdminTreeWorkspace
+        adminBasePath={getAdminPath()}
         libraries={libraries}
         selectedPath={selectedPath}
         selectedKind={selectedKind}

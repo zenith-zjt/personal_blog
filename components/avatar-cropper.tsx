@@ -195,6 +195,7 @@ export function AvatarCropper({ currentAvatarPath }: AvatarCropperProps) {
 
           <button
             type="button"
+            data-testid="apply-avatar-crop"
             disabled={!sourceUrl}
             onClick={() => {
               drawCroppedAvatar("裁剪头像已应用，保存资料后生效。").catch(() => {

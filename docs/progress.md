@@ -59,3 +59,10 @@
 - 完成项：头像文件上传到 `data/resource/`、头像相对路径读取、后台 `导入导出` 标签页、系统备份 ZIP 导出/导入、博客迁移 ZIP 导出/增量导入。
 - 校验项：系统备份导入校验账号配置结构；博客迁移导入过滤非法文章文件和非法资源文件。
 - 测试项：补充后台资料头像上传与前台展示、导入导出页面访问和 ZIP 下载流程测试。
+
+## 阶段 7 进度：安全防护与部署准备
+
+- 状态：进行中
+- 已完成：后台入口支持 `ADMIN_ROUTE_BASE` 自定义；启用自定义入口时默认后台路径返回 404；登录失败限流；生产环境强制配置 `ADMIN_SESSION_SECRET`；会话 Cookie 加固；登录页移除默认凭据展示与自动填充；阻断 `/data/*` 与 `/content/*` 直接访问；补充基础安全响应头。
+- 已完成：新增根目录 `Dockerfile`、`.dockerignore`、`docker-compose.yml`，参考 `docs/dev-ops` 中的部署配置并适配本项目 `data` 与 `content` volume。
+- 文档：新增 `docs/stage7-security-deployment.md` 记录安全与部署配置。

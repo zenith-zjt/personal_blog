@@ -34,6 +34,7 @@ type DragState = {
 };
 
 type AdminTreeWorkspaceProps = {
+  adminBasePath: string;
   libraries: LibraryTree[];
   selectedPath: string;
   selectedKind: AdminSelectionKind;
@@ -46,7 +47,7 @@ const initialState: AdminUploadFormState = {
   success: false,
 };
 
-function buildSelectionHref(selected: string, kind: AdminSelectionKind) {
+function buildSelectionHref(adminBasePath: string, selected: string, kind: AdminSelectionKind) {
   const searchParams = new URLSearchParams();
 
   if (selected) {
@@ -54,7 +55,7 @@ function buildSelectionHref(selected: string, kind: AdminSelectionKind) {
   }
 
   searchParams.set("kind", kind);
-  return `/admin-archive-portal/tree?${searchParams.toString()}`;
+  return `${adminBasePath}/tree?${searchParams.toString()}`;
 }
 
 function joinLibraryPath(librarySlug: string, nodePath: string) {
@@ -112,6 +113,7 @@ function getSelectionSummary(kind: AdminSelectionKind) {
 
 function TreeNodeList({
   nodes,
+  adminBasePath,
   librarySlug,
   selectedPath,
   selectedKind,
@@ -123,6 +125,7 @@ function TreeNodeList({
   onDrop,
 }: {
   nodes: TreeNode[];
+  adminBasePath: string;
   librarySlug: string;
   selectedPath: string;
   selectedKind: AdminSelectionKind;
@@ -165,7 +168,7 @@ function TreeNodeList({
               } ${isDragging ? "opacity-50" : ""}`}
             >
               <Link
-                href={buildSelectionHref(fullPath, nodeKind)}
+                href={buildSelectionHref(adminBasePath, fullPath, nodeKind)}
                 scroll={false}
                 className="flex min-w-0 items-center gap-3"
               >
@@ -197,6 +200,7 @@ function TreeNodeList({
               <div className="mt-2">
                 <TreeNodeList
                   nodes={node.children}
+                  adminBasePath={adminBasePath}
                   librarySlug={librarySlug}
                   selectedPath={selectedPath}
                   selectedKind={selectedKind}
@@ -217,6 +221,7 @@ function TreeNodeList({
 }
 
 export function AdminTreeWorkspace({
+  adminBasePath,
   libraries,
   selectedPath,
   selectedKind,
@@ -492,7 +497,7 @@ export function AdminTreeWorkspace({
                       }`}
                     >
                       <Link
-                        href={buildSelectionHref(library.slug, "library")}
+                        href={buildSelectionHref(adminBasePath, library.slug, "library")}
                         scroll={false}
                         className="group block px-5 py-5"
                       >
@@ -536,6 +541,7 @@ export function AdminTreeWorkspace({
                       >
                         <TreeNodeList
                           nodes={library.tree}
+                          adminBasePath={adminBasePath}
                           librarySlug={library.slug}
                           selectedPath={selectedPath}
                           selectedKind={selectedKind}

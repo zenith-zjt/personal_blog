@@ -7,10 +7,14 @@ import { redirect } from "next/navigation";
 
 import {
   clearAdminSession,
+  clearAdminLoginFailures,
   createAdminSession,
+  getAdminLoginRateLimit,
+  recordAdminLoginFailure,
   requireAdminSession,
   verifyAdminCredentials,
 } from "@/lib/admin-auth";
+import { getAdminPath, getInternalAdminPath } from "@/lib/admin-paths";
 import {
   updateAdminProfile,
   updateAdminSecurity,
@@ -99,16 +103,26 @@ export async function adminLoginAction(
 ) {
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "").trim();
+  const rateLimit = await getAdminLoginRateLimit(username);
+
+  if (!rateLimit.allowed) {
+    return {
+      message: `登录尝试过多，请 ${rateLimit.retryAfterSeconds} 秒后再试。`,
+    };
+  }
+
   const verification = await verifyAdminCredentials(username, password);
 
   if (!verification.ok) {
+    recordAdminLoginFailure(rateLimit.key);
     return {
       message: verification.message,
     };
   }
 
+  clearAdminLoginFailures(rateLimit.key);
   await createAdminSession(verification.username);
-  redirect("/admin-archive-portal");
+  redirect(getAdminPath());
 }
 
 export async function adminUpdateSecurityAction(
@@ -256,11 +270,18 @@ export async function adminImportBlogMigrationAction(
 function revalidateAdminAndPublicPaths() {
   revalidatePath("/");
   revalidatePath("/search");
-  revalidatePath("/admin-archive-portal");
-  revalidatePath("/admin-archive-portal/settings");
-  revalidatePath("/admin-archive-portal/import-export");
-  revalidatePath("/admin-archive-portal/tree");
-  revalidatePath("/admin-archive-portal/upload");
+  [
+    getInternalAdminPath(),
+    getInternalAdminPath("/settings"),
+    getInternalAdminPath("/import-export"),
+    getInternalAdminPath("/tree"),
+    getInternalAdminPath("/upload"),
+    getAdminPath(),
+    getAdminPath("/settings"),
+    getAdminPath("/import-export"),
+    getAdminPath("/tree"),
+    getAdminPath("/upload"),
+  ].forEach((targetPath) => revalidatePath(targetPath));
 }
 
 function buildTreeRedirectUrl(
@@ -291,8 +312,8 @@ function buildTreeRedirectUrl(
 
   const query = searchParams.toString();
   return query
-    ? `/admin-archive-portal/tree?${query}`
-    : "/admin-archive-portal/tree";
+    ? `${getAdminPath("/tree")}?${query}`
+    : getAdminPath("/tree");
 }
 
 async function buildFallbackTreeSelection(preferredPath?: string) {
@@ -613,5 +634,5 @@ export async function adminDeleteContentNodeAction(formData: FormData) {
 
 export async function adminLogoutAction() {
   await clearAdminSession();
-  redirect("/admin-archive-portal/login");
+  redirect(getAdminPath("/login"));
 }

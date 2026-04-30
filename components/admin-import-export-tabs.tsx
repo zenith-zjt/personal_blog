@@ -48,7 +48,11 @@ function Feedback({ state }: { state: AdminSettingsFormState }) {
   );
 }
 
-export function AdminImportExportTabs() {
+export function AdminImportExportTabs({
+  adminBasePath,
+}: {
+  adminBasePath: string;
+}) {
   const [activeTab, setActiveTab] = useState<"system" | "blog">("system");
   const systemOverwriteRef = useRef<HTMLInputElement>(null);
   const [systemState, systemAction, systemPending] = useActionState(
@@ -106,7 +110,7 @@ export function AdminImportExportTabs() {
                 将 data 目录中的账号配置与资源文件打包成 ZIP，通过浏览器下载。
               </p>
               <a
-                href="/admin-archive-portal/import-export/system/export"
+                href={`${adminBasePath}/import-export/system/export`}
                 className="mt-6 inline-flex rounded-2xl border border-stone-300 bg-white px-5 py-3 text-sm font-semibold !text-stone-950 shadow-[0_12px_30px_rgba(44,36,24,0.08)] transition hover:border-stone-900 hover:bg-stone-50"
               >
                 下载系统备份
@@ -173,7 +177,7 @@ export function AdminImportExportTabs() {
                 将 content 目录中的知识库、Markdown、排序配置和图片资源打包下载。
               </p>
               <a
-                href="/admin-archive-portal/import-export/blog/export"
+                href={`${adminBasePath}/import-export/blog/export`}
                 className="mt-6 inline-flex rounded-2xl border border-stone-300 bg-white px-5 py-3 text-sm font-semibold !text-stone-950 shadow-[0_12px_30px_rgba(44,36,24,0.08)] transition hover:border-stone-900 hover:bg-stone-50"
               >
                 下载博客迁移包

@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { adminLogoutAction } from "@/app/admin-archive-portal/actions";
+import { getAdminPath } from "@/lib/admin-paths";
 
 type AdminShellProps = {
   title: string;
@@ -13,22 +14,22 @@ const adminNavItems = [
   {
     key: "dashboard",
     label: "后台概览",
-    href: "/admin-archive-portal",
+    href: getAdminPath(),
   },
   {
     key: "tree",
     label: "知识库管理",
-    href: "/admin-archive-portal/tree",
+    href: getAdminPath("/tree"),
   },
   {
     key: "settings",
     label: "账号设置",
-    href: "/admin-archive-portal/settings",
+    href: getAdminPath("/settings"),
   },
   {
     key: "import-export",
     label: "导入导出",
-    href: "/admin-archive-portal/import-export",
+    href: getAdminPath("/import-export"),
   },
 ] as const;
 

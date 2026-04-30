@@ -23,7 +23,7 @@ export function AdminLoginForm() {
           name="username"
           type="text"
           autoComplete="username"
-          defaultValue="admin"
+          placeholder="输入管理员用户名"
           className="w-full rounded-2xl border border-stone-300 bg-white/90 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-stone-900"
         />
       </div>
@@ -37,7 +37,7 @@ export function AdminLoginForm() {
           name="password"
           type="password"
           autoComplete="current-password"
-          defaultValue="admin"
+          placeholder="输入管理员密码"
           className="w-full rounded-2xl border border-stone-300 bg-white/90 px-4 py-3 text-sm text-stone-900 outline-none transition focus:border-stone-900"
         />
       </div>

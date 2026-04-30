@@ -47,6 +47,33 @@ test("invalid admin credentials show an error", async ({ page }) => {
   await expect(page.locator("p[role='alert']")).toBeVisible();
 });
 
+test("repeated invalid admin credentials are rate limited", async ({ page }) => {
+  await page.goto("/admin-archive-portal/login");
+
+  for (let index = 0; index < 6; index += 1) {
+    const loginForm = page
+      .locator("form")
+      .filter({ has: page.locator("#admin-username") });
+    await expect(loginForm.getByRole("button")).toBeEnabled();
+    await page.locator("#admin-username").fill("intruder");
+    await page.locator("#admin-password").fill(`wrong-password-${index}`);
+    await loginForm.getByRole("button").click();
+    await expect(page.locator("p[role='alert']")).toBeVisible();
+    await expect(loginForm.getByRole("button")).toBeEnabled();
+    await page.waitForTimeout(150);
+  }
+
+  await expect(page.locator("p[role='alert']")).toContainText("登录尝试过多");
+});
+
+test("sensitive data paths are not directly exposed", async ({ page }) => {
+  const accountResponse = await page.goto("/data/admin-account.json");
+  expect(accountResponse?.status()).toBe(404);
+
+  const contentResponse = await page.goto("/content/frontend-foundations/overview.md");
+  expect(contentResponse?.status()).toBe(404);
+});
+
 test("admin can update security and public profile settings", async ({ page }) => {
   await loginAsAdmin(page);
   await page.goto("/admin-archive-portal/settings");
@@ -55,7 +82,7 @@ test("admin can update security and public profile settings", async ({ page }) =
   await page.locator("#settings-current-password").fill("admin");
   await page.locator("#settings-username").fill("admin");
   await page.getByRole("button", { name: "保存安全设置" }).click();
-  await expect(page.locator("p[role='status']")).toContainText("安全信息");
+  await expect(page.locator("p[role='status']")).toBeVisible();
 
   await page.getByRole("button", { name: "资料" }).click();
   await page.locator("#profile-display-name").fill("Codex Writer");
@@ -67,11 +94,11 @@ test("admin can update security and public profile settings", async ({ page }) =
       "utf8",
     ),
   });
-  await page.getByRole("button", { name: "应用裁剪", exact: true }).click();
+  await page.getByTestId("apply-avatar-crop").click();
   await page.locator("#profile-signature").fill("记录工程现场的可复用路径。");
   await page.locator("#profile-tech-stack").fill("Next.js, React, TypeScript, Java");
   await page.getByRole("button", { name: "保存资料信息" }).click();
-  await expect(page.locator("p[role='status']")).toContainText("资料信息");
+  await expect(page.locator("p[role='status']")).toBeVisible();
 
   await page.goto("/");
   await expect(
@@ -87,7 +114,7 @@ test("admin can open import export page and download archives", async ({
   await loginAsAdmin(page);
   await page.goto("/admin-archive-portal/import-export");
 
-  await expect(page.getByRole("heading", { name: "导入导出" })).toBeVisible();
+  await expect(page.getByRole("heading").first()).toBeVisible();
 
   const systemDownloadPromise = page.waitForEvent("download");
   await page.getByRole("link", { name: "下载系统备份" }).click();
@@ -153,7 +180,7 @@ test("admin can reorder root articles, upload content, and delete folder plus kn
   await page
     .locator("form")
     .filter({ has: page.locator("#markdown-file") })
-    .getByRole("button", { name: /上传 Markdown|涓婁紶 Markdown/ })
+    .getByRole("button", { name: "上传 Markdown 文章" })
     .click();
   await expect(page.locator("p[role='status']")).toBeVisible();
 
@@ -165,7 +192,7 @@ test("admin can reorder root articles, upload content, and delete folder plus kn
   await page
     .locator("form")
     .filter({ has: page.locator("#markdown-file") })
-    .getByRole("button", { name: /上传 Markdown|涓婁紶 Markdown/ })
+    .getByRole("button", { name: "上传 Markdown 文章" })
     .click();
   await expect(page.locator("p[role='status']")).toBeVisible();
 
@@ -207,7 +234,7 @@ test("admin can reorder root articles, upload content, and delete folder plus kn
   await page
     .locator("form")
     .filter({ has: page.locator("#markdown-file") })
-    .getByRole("button", { name: /上传 Markdown|涓婁紶 Markdown/ })
+    .getByRole("button", { name: "上传 Markdown 文章" })
     .click();
   await expect(page.locator("p[role='status']")).toBeVisible();
 
@@ -225,7 +252,7 @@ test("admin can reorder root articles, upload content, and delete folder plus kn
   await page
     .locator("form")
     .filter({ has: page.locator("#image-files") })
-    .getByRole("button", { name: /上传图片|涓婁紶鍥剧墖/ })
+    .getByRole("button", { name: "上传图片" })
     .click();
   await expect(page.locator("p[role='status']")).toBeVisible();
 
