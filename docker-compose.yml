@@ -2,8 +2,7 @@ version: "3.8"
 
 services:
   personal-blog:
-    build: .
-    image: personal-blog:${IMAGE_TAG:-latest}
+    image: zenithzjt/personal_blog:${IMAGE_TAG:-latest}
     container_name: personal_blog
     restart: unless-stopped
     ports:

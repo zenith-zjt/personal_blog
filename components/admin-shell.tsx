@@ -57,6 +57,7 @@ export function AdminShell({
               <Link
                 key={item.key}
                 href={item.href}
+                prefetch={false}
                 aria-current={currentPath === item.key ? "page" : undefined}
                 className={`group flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-semibold transition ${
                   currentPath === item.key
