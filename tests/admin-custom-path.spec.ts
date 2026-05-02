@@ -41,5 +41,7 @@ test("custom admin path keeps the admin session when switching pages", async ({
 
   await page.locator(`a[href='${customAdminPath}/import-export']`).click();
   await expect(page).toHaveURL(new RegExp(`${customAdminPath}/import-export$`));
-  await expect(page.locator("button[aria-label]")).toHaveCount(2);
+  await expect(
+    page.locator(`a[href='${customAdminPath}/import-export/system/export']`),
+  ).toBeVisible();
 });

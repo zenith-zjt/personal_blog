@@ -11,6 +11,7 @@ services:
       NODE_ENV: production
       ADMIN_ROUTE_BASE: ${ADMIN_ROUTE_BASE:-/admin-archive-portal}
       ADMIN_SESSION_SECRET: ${ADMIN_SESSION_SECRET:?ADMIN_SESSION_SECRET is required}
+      ADMIN_SESSION_SECURE: ${ADMIN_SESSION_SECURE:-auto}
     volumes:
       - blog_data:/app/data
       - blog_content:/app/content

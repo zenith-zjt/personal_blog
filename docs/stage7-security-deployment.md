@@ -17,6 +17,7 @@
 ```env
 ADMIN_ROUTE_BASE=/private-desk-2026
 ADMIN_SESSION_SECRET=replace-with-a-long-random-secret
+ADMIN_SESSION_SECURE=auto
 APP_PORT=3000
 IMAGE_TAG=latest
 ```
@@ -25,5 +26,6 @@ IMAGE_TAG=latest
 
 - `ADMIN_ROUTE_BASE` 不要使用 `/api`、`/_next`、`/kb`、`/search` 等公开或系统路径前缀。
 - `ADMIN_SESSION_SECRET` 建议使用至少 32 字节随机字符串；修改后，旧后台会话会立即失效。
+- `ADMIN_SESSION_SECURE` 默认 `auto`：请求经过 HTTPS 或反向代理携带 `x-forwarded-proto=https` 时会自动启用 `Secure`；如果直接通过 `http://IP:端口` 访问容器，会自动关闭 `Secure` 以避免登录后刷新丢会话。也可显式设为 `true` 或 `false`。
 - `data` 与 `content` 不应进入镜像，应通过 volume 持久化。
 - 生产部署后应立即修改默认 `admin/admin` 凭据。

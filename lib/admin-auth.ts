@@ -30,6 +30,24 @@ type AdminSessionPayload = {
 
 const loginAttempts = new Map<string, LoginAttemptRecord>();
 
+function parseBooleanEnvFlag(value: string | undefined) {
+  const normalized = value?.trim().toLowerCase();
+
+  if (!normalized) {
+    return null;
+  }
+
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return null;
+}
+
 function getSessionSecret() {
   const secret = process.env.ADMIN_SESSION_SECRET?.trim();
 
@@ -193,14 +211,58 @@ export function clearAdminLoginFailures(key: string) {
   loginAttempts.delete(key);
 }
 
+async function shouldUseSecureSessionCookie() {
+  const explicit = parseBooleanEnvFlag(process.env.ADMIN_SESSION_SECURE);
+
+  if (explicit !== null) {
+    return explicit;
+  }
+
+  if (process.env.NODE_ENV !== "production") {
+    return false;
+  }
+
+  const headerStore = await headers();
+  const forwardedProto = headerStore
+    .get("x-forwarded-proto")
+    ?.split(",")[0]
+    ?.trim()
+    .toLowerCase();
+
+  if (forwardedProto) {
+    return forwardedProto === "https";
+  }
+
+  const forwarded = headerStore.get("forwarded");
+  if (forwarded) {
+    const match = forwarded.match(/proto=(https?)/i);
+    if (match) {
+      return match[1].toLowerCase() === "https";
+    }
+  }
+
+  const origin = headerStore.get("origin");
+  if (origin) {
+    return origin.startsWith("https://");
+  }
+
+  const referer = headerStore.get("referer");
+  if (referer) {
+    return referer.startsWith("https://");
+  }
+
+  return false;
+}
+
 export async function createAdminSession(username: string) {
   const cookieStore = await cookies();
   const token = createSessionToken(username);
+  const secure = await shouldUseSecureSessionCookie();
 
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
+    secure,
     path: "/",
     maxAge: SESSION_DURATION_SECONDS,
     priority: "high",
@@ -209,10 +271,12 @@ export async function createAdminSession(username: string) {
 
 export async function clearAdminSession() {
   const cookieStore = await cookies();
+  const secure = await shouldUseSecureSessionCookie();
+
   cookieStore.set(SESSION_COOKIE_NAME, "", {
     httpOnly: true,
     sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
+    secure,
     path: "/",
     maxAge: 0,
     priority: "high",
