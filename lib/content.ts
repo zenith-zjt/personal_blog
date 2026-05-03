@@ -48,9 +48,15 @@ export type KnowledgeBaseSummary = {
   rootPath: string;
 };
 
+export type ArticleHeading = {
+  id: string;
+  text: string;
+  level: number;
+};
+
 export type ArticleDocument = ArticleMeta & {
   body: string;
-  headings: string[];
+  headings: ArticleHeading[];
   assetBasePath: string;
   resolvedImageSources: string[];
 };
@@ -279,21 +285,53 @@ function parseMarkdownFile(markdown: string): ParsedMarkdown {
   };
 }
 
-function titleFromMarkdownBody(body: string, fallback: string) {
-  const headingLine = body
-    .split(/\r?\n/)
-    .find((line) => /^#{1,6}\s+/.test(line.trim()));
+function collectMarkdownHeadings(body: string) {
+  const headings: Array<{ text: string; level: number }> = [];
+  let insideCodeFence = false;
 
-  return headingLine
-    ? headingLine.replace(/^#{1,6}\s+/, "").trim()
+  for (const rawLine of body.split(/\r?\n/)) {
+    const line = rawLine.trim();
+
+    if (line.startsWith("```")) {
+      insideCodeFence = !insideCodeFence;
+      continue;
+    }
+
+    if (insideCodeFence) {
+      continue;
+    }
+
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (!headingMatch) {
+      continue;
+    }
+
+    headings.push({
+      level: headingMatch[1].length,
+      text: headingMatch[2].trim(),
+    });
+  }
+
+  return headings;
+}
+
+function titleFromMarkdownBody(body: string, fallback: string) {
+  const firstHeading = collectMarkdownHeadings(body)[0];
+
+  return firstHeading
+    ? firstHeading.text
     : fallback;
 }
 
-function extractHeadings(body: string) {
-  return body
-    .split(/\r?\n/)
-    .filter((line) => /^#{1,6}\s+/.test(line.trim()))
-    .map((line) => line.replace(/^#{1,6}\s+/, "").trim());
+function extractHeadings(body: string, title?: string) {
+  const headings = collectMarkdownHeadings(body);
+  const visibleHeadings =
+    title && headings[0]?.text === title ? headings.slice(1) : headings;
+
+  return visibleHeadings.map((heading, index) => ({
+    ...heading,
+    id: `heading-${index}`,
+  }));
 }
 
 function uniqueNames(names: string[]) {
@@ -970,15 +1008,16 @@ export async function readArticle(
   const rawMarkdown = await fs.readFile(absoluteMarkdownPath, "utf8");
   const parsed = parseMarkdownFile(rawMarkdown);
   const fileStem = normalizedSlug.at(-1) ?? librarySlug;
+  const title = parsed.frontmatter.title ?? titleFromMarkdownBody(parsed.body, fileStem);
 
   return {
-    title: parsed.frontmatter.title ?? titleFromMarkdownBody(parsed.body, fileStem),
+    title,
     description: parsed.frontmatter.description ?? null,
     updatedAt: parsed.frontmatter.updatedAt ?? null,
     slugParts: normalizedSlug,
     relativePath: toPosixPath(...normalizedSlug) + ".md",
     body: parsed.body,
-    headings: extractHeadings(parsed.body),
+    headings: extractHeadings(parsed.body, title),
     assetBasePath: createAssetUrl(librarySlug, normalizedSlug, ""),
     resolvedImageSources: extractResolvedImageSources(
       parsed.body,

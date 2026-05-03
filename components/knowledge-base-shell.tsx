@@ -17,7 +17,11 @@ type KnowledgeBaseShellProps = {
   }>;
   tree: TreeNode[];
   articleTitle: string;
-  articleHeadings: string[];
+  articleHeadings: Array<{
+    id: string;
+    text: string;
+    level: number;
+  }>;
   articleMeta: React.ReactNode;
   articleBody: React.ReactNode;
 };
@@ -107,6 +111,10 @@ export function KnowledgeBaseShell({
 }: KnowledgeBaseShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const currentPath = currentSlugParts.join("/");
+  const minHeadingLevel =
+    articleHeadings.length > 0
+      ? Math.min(...articleHeadings.map((heading) => heading.level))
+      : 1;
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_18%_0%,#f8efe1_0%,#efe4d3_44%,#ded0bc_100%)] px-4 py-4 text-stone-900 md:px-6 md:py-6">
@@ -233,12 +241,16 @@ export function KnowledgeBaseShell({
             {articleHeadings.length > 0 ? (
               <ol className="mt-5 space-y-2">
                 {articleHeadings.map((heading, index) => (
-                  <li key={`${heading}-${index}`}>
+                  <li key={`${heading.id}-${index}`}>
                     <a
-                      href={`#heading-${index}`}
+                      href={`#${heading.id}`}
+                      data-heading-level={heading.level}
                       className="block rounded-2xl px-3 py-2 text-sm leading-6 text-stone-600 transition hover:bg-stone-100 hover:text-stone-950"
+                      style={{
+                        paddingLeft: `${12 + Math.max(0, heading.level - minHeadingLevel) * 14}px`,
+                      }}
                     >
-                      {heading}
+                      {heading.text}
                     </a>
                   </li>
                 ))}

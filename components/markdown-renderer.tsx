@@ -3,6 +3,11 @@ import Image from "next/image";
 type MarkdownRendererProps = {
   markdown: string;
   resolvedImageSources: string[];
+  headings: Array<{
+    id: string;
+    text: string;
+    level: number;
+  }>;
   title?: string;
 };
 
@@ -31,6 +36,238 @@ function renderInline(text: string) {
   return withCode
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>");
+}
+
+function renderCodeToken(token: string, text: string) {
+  const className =
+    token === "comment"
+      ? "text-stone-400"
+      : token === "string"
+        ? "text-emerald-300"
+        : token === "keyword"
+          ? "text-amber-300"
+          : token === "number"
+            ? "text-sky-300"
+            : "text-violet-300";
+
+  return `<span data-token="${token}" class="${className}">${text}</span>`;
+}
+
+function highlightGenericCode(
+  code: string,
+  options: {
+    keywords: string[];
+    builtins?: string[];
+    hashComments?: boolean;
+  },
+) {
+  const placeholders: string[] = [];
+  const protect = (input: string, pattern: RegExp, token: string) =>
+    input.replace(pattern, (match, prefix = "", hashComment = match) => {
+      const placeholder = String.fromCodePoint(0xe000 + placeholders.length);
+      const content =
+        token === "comment" && prefix
+          ? `${prefix}${renderCodeToken(token, hashComment)}`
+          : renderCodeToken(token, match);
+      placeholders.push(content);
+      return placeholder;
+    });
+
+  let html = escapeInlineHtml(code);
+
+  html = protect(html, /\/\*[\s\S]*?\*\//g, "comment");
+  html = protect(html, /\/\/.*$/gm, "comment");
+  if (options.hashComments) {
+    html = protect(html, /(^|\s)(#.*)$/gm, "comment");
+  }
+  html = protect(
+    html,
+    /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`/g,
+    "string",
+  );
+
+  if (options.keywords.length > 0) {
+    const keywordPattern = new RegExp(
+      `\\b(?:${options.keywords.join("|")})\\b`,
+      "gi",
+    );
+    html = protect(html, keywordPattern, "keyword");
+  }
+
+  if ((options.builtins?.length ?? 0) > 0) {
+    const builtinPattern = new RegExp(
+      `\\b(?:${options.builtins?.join("|")})\\b`,
+      "g",
+    );
+    html = protect(html, builtinPattern, "builtin");
+  }
+
+  html = protect(html, /\b\d+(?:\.\d+)?\b/g, "number");
+
+  return Array.from(html)
+    .map((character) => {
+      const placeholderIndex = character.codePointAt(0)! - 0xe000;
+      return placeholderIndex >= 0 && placeholderIndex < placeholders.length
+        ? placeholders[placeholderIndex]
+        : character;
+    })
+    .join("");
+}
+
+function highlightMarkupCode(code: string) {
+  const escaped = escapeInlineHtml(code);
+
+  return escaped.replace(
+    /(&lt;\/?)([A-Za-z][\w:-]*)([\s\S]*?)(\/?&gt;)/g,
+    (_, open, tagName, attributes, close) => {
+      const highlightedAttributes = String(attributes).replace(
+        /([A-Za-z_:][-A-Za-z0-9_:.]*)(=)("(?:\\.|[^"])*"|'(?:\\.|[^'])*')/g,
+        (_attrMatch, attrName, equals, attrValue) =>
+          `${renderCodeToken("keyword", attrName)}${equals}${renderCodeToken("string", attrValue)}`,
+      );
+
+      return `${renderCodeToken("keyword", open)}${renderCodeToken("builtin", tagName)}${highlightedAttributes}${renderCodeToken("keyword", close)}`;
+    },
+  );
+}
+
+function highlightCode(code: string, language: string | null) {
+  const normalizedLanguage = language?.toLowerCase() ?? "";
+
+  if (["html", "xml", "svg", "mdx"].includes(normalizedLanguage)) {
+    return highlightMarkupCode(code);
+  }
+
+  if (normalizedLanguage === "json") {
+    return highlightGenericCode(code, {
+      keywords: ["true", "false", "null"],
+    });
+  }
+
+  if (["bash", "sh", "shell", "zsh", "powershell", "ps1"].includes(normalizedLanguage)) {
+    return highlightGenericCode(code, {
+      keywords: [
+        "if",
+        "then",
+        "else",
+        "fi",
+        "for",
+        "do",
+        "done",
+        "case",
+        "esac",
+        "function",
+        "param",
+      ],
+      builtins: ["echo", "cd", "ls", "pwd", "export", "set"],
+      hashComments: true,
+    });
+  }
+
+  if (normalizedLanguage === "sql") {
+    return highlightGenericCode(code, {
+      keywords: [
+        "select",
+        "from",
+        "where",
+        "insert",
+        "into",
+        "update",
+        "delete",
+        "join",
+        "left",
+        "right",
+        "inner",
+        "outer",
+        "on",
+        "group",
+        "by",
+        "order",
+        "having",
+        "limit",
+        "as",
+        "and",
+        "or",
+        "not",
+        "create",
+        "table",
+        "values",
+      ],
+    });
+  }
+
+  if (normalizedLanguage === "java") {
+    return highlightGenericCode(code, {
+      keywords: [
+        "package",
+        "import",
+        "class",
+        "interface",
+        "enum",
+        "public",
+        "private",
+        "protected",
+        "static",
+        "final",
+        "void",
+        "new",
+        "return",
+        "if",
+        "else",
+        "switch",
+        "case",
+        "for",
+        "while",
+        "try",
+        "catch",
+        "throw",
+        "throws",
+      ],
+      builtins: ["String", "Integer", "Long", "Boolean", "System"],
+    });
+  }
+
+  return highlightGenericCode(code, {
+    keywords: [
+      "const",
+      "let",
+      "var",
+      "function",
+      "return",
+      "if",
+      "else",
+      "switch",
+      "case",
+      "for",
+      "while",
+      "do",
+      "break",
+      "continue",
+      "try",
+      "catch",
+      "finally",
+      "throw",
+      "class",
+      "extends",
+      "implements",
+      "interface",
+      "type",
+      "enum",
+      "import",
+      "export",
+      "from",
+      "async",
+      "await",
+      "new",
+      "typeof",
+      "instanceof",
+      "true",
+      "false",
+      "null",
+      "undefined",
+    ],
+    builtins: ["console", "Promise", "Array", "Object", "Map", "Set"],
+  });
 }
 
 function isTableSeparatorLine(line: string) {
@@ -186,6 +423,7 @@ function parseMarkdown(markdown: string): ParsedBlock[] {
 export function MarkdownRenderer({
   markdown,
   resolvedImageSources,
+  headings,
   title,
 }: MarkdownRendererProps) {
   const blocks = parseMarkdown(markdown);
@@ -209,27 +447,27 @@ export function MarkdownRenderer({
       resolvedSrc: resolvedImageSources[imageOffset] ?? block.src,
     };
   });
-  const headingIndexByBlock = new Map<number, number>();
-  let headingCursor = -1;
-  resolvedBlocks.forEach((block, index) => {
-    if (block.type === "heading") {
-      headingCursor += 1;
-      headingIndexByBlock.set(index, headingCursor);
-    }
-  });
+  let visibleHeadingCursor = 0;
 
   return (
     <div className="space-y-6 text-[15px] leading-8 text-stone-700 md:text-[17px]">
       {resolvedBlocks.map((block, blockIndex) => {
         if (block.type === "heading") {
-          const currentHeadingIndex = headingIndexByBlock.get(blockIndex) ?? 0;
           if (shouldSkipFirstTitle && blockIndex === firstHeadingIndex) {
             return null;
           }
 
+          const currentHeadingId =
+            headings[visibleHeadingCursor]?.id ?? `heading-${visibleHeadingCursor}`;
+          visibleHeadingCursor += 1;
+
           if (block.level === 1) {
             return (
-              <h3 id={`heading-${currentHeadingIndex}`} key={`heading-${blockIndex}`} className="scroll-mt-8 text-3xl font-semibold text-stone-900">
+              <h3
+                id={currentHeadingId}
+                key={`heading-${blockIndex}`}
+                className="scroll-mt-8 text-3xl font-semibold text-stone-900"
+              >
                 {block.text}
               </h3>
             );
@@ -238,7 +476,7 @@ export function MarkdownRenderer({
           if (block.level === 2) {
             return (
               <h4
-                id={`heading-${currentHeadingIndex}`}
+                id={currentHeadingId}
                 key={`heading-${blockIndex}`}
                 className="scroll-mt-8 pt-4 text-2xl font-semibold text-stone-900"
               >
@@ -249,7 +487,7 @@ export function MarkdownRenderer({
 
           return (
             <h5
-              id={`heading-${currentHeadingIndex}`}
+              id={currentHeadingId}
               key={`heading-${blockIndex}`}
               className="scroll-mt-8 pt-3 text-lg font-semibold text-stone-800"
             >
@@ -307,7 +545,11 @@ export function MarkdownRenderer({
                 {block.language ?? "code"}
               </div>
               <pre className="overflow-x-auto px-5 py-5 text-sm leading-7 text-stone-100">
-                <code>{block.code}</code>
+                <code
+                  dangerouslySetInnerHTML={{
+                    __html: highlightCode(block.code, block.language),
+                  }}
+                />
               </pre>
             </div>
           );
@@ -334,7 +576,10 @@ export function MarkdownRenderer({
                   </thead>
                   <tbody>
                     {block.rows.map((row, rowIndex) => (
-                      <tr key={`row-${rowIndex}`} className="odd:bg-white even:bg-stone-50/70">
+                      <tr
+                        key={`row-${rowIndex}`}
+                        className="odd:bg-white even:bg-stone-50/70"
+                      >
                         {block.headers.map((_, cellIndex) => (
                           <td
                             key={`cell-${rowIndex}-${cellIndex}`}

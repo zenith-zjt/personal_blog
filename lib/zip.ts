@@ -9,6 +9,8 @@ const LOCAL_FILE_HEADER = 0x04034b50;
 const CENTRAL_DIRECTORY_HEADER = 0x02014b50;
 const END_OF_CENTRAL_DIRECTORY = 0x06054b50;
 const UTF8_FLAG = 0x0800;
+const gb18030Decoder = new TextDecoder("gb18030");
+const utf8Decoder = new TextDecoder("utf-8", { fatal: true });
 
 const crcTable = new Uint32Array(256);
 
@@ -41,6 +43,70 @@ function normalizeZipPath(entryName: string) {
   }
 
   return segments.join("/");
+}
+
+function scoreDecodedName(value: string) {
+  if (!value) {
+    return Number.NEGATIVE_INFINITY;
+  }
+
+  let score = 0;
+
+  for (const character of value) {
+    const codePoint = character.codePointAt(0) ?? 0;
+
+    if (character === "\uFFFD" || codePoint < 0x20) {
+      score -= 12;
+      continue;
+    }
+
+    if (
+      (codePoint >= 0x4e00 && codePoint <= 0x9fff) ||
+      (codePoint >= 0x3400 && codePoint <= 0x4dbf)
+    ) {
+      score += 6;
+      continue;
+    }
+
+    if (/[a-zA-Z0-9/._\- ]/.test(character)) {
+      score += 2;
+      continue;
+    }
+
+    score += 1;
+  }
+
+  if (/[ÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝÞß]/.test(value)) {
+    score -= 8;
+  }
+
+  return score;
+}
+
+function decodeZipEntryName(rawName: Buffer, flags: number) {
+  if (flags & UTF8_FLAG) {
+    return normalizeZipPath(rawName.toString("utf8"));
+  }
+
+  const candidates: string[] = [];
+
+  try {
+    candidates.push(utf8Decoder.decode(rawName));
+  } catch {
+    // Ignore invalid UTF-8 and fall back to legacy encodings.
+  }
+
+  candidates.push(gb18030Decoder.decode(rawName));
+  candidates.push(rawName.toString("latin1"));
+
+  const decoded = candidates
+    .map((value) => ({
+      value,
+      score: scoreDecodedName(value),
+    }))
+    .sort((left, right) => right.score - left.score)[0]?.value;
+
+  return normalizeZipPath(decoded ?? rawName.toString("utf8"));
 }
 
 export function createZip(entries: ZipEntry[]) {
@@ -129,6 +195,7 @@ export function readZip(buffer: Buffer): ZipEntry[] {
       throw new Error("ZIP 中央目录损坏。");
     }
 
+    const flags = buffer.readUInt16LE(offset + 8);
     const method = buffer.readUInt16LE(offset + 10);
     const compressedSize = buffer.readUInt32LE(offset + 20);
     const uncompressedSize = buffer.readUInt32LE(offset + 24);
@@ -136,8 +203,9 @@ export function readZip(buffer: Buffer): ZipEntry[] {
     const extraLength = buffer.readUInt16LE(offset + 30);
     const commentLength = buffer.readUInt16LE(offset + 32);
     const localOffset = buffer.readUInt32LE(offset + 42);
-    const name = normalizeZipPath(
-      buffer.subarray(offset + 46, offset + 46 + nameLength).toString("utf8"),
+    const name = decodeZipEntryName(
+      buffer.subarray(offset + 46, offset + 46 + nameLength),
+      flags,
     );
 
     offset += 46 + nameLength + extraLength + commentLength;

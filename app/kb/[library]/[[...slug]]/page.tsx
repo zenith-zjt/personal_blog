@@ -140,6 +140,7 @@ export default async function KnowledgeBaseArticlePage({
         <MarkdownRenderer
           markdown={article.body}
           resolvedImageSources={article.resolvedImageSources}
+          headings={article.headings}
           title={article.title}
         />
       }
